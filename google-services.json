@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "126569065677",
+    "project_id": "mealflow-e07e3",
+    "storage_bucket": "mealflow-e07e3.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:126569065677:android:0502aeff00bb42b1d94d84",
+        "android_client_info": {
+          "package_name": "com.mealflow.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBzPXtA0RRZXY_6-Rpgmpx3CrfNEJV22WY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -9,16 +9,20 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.mealflow.app"
+      "bundleIdentifier": "com.mealflow.app",
+      "googleServicesFile": "./GoogleService-Info.plist"
     },
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png"
       },
-      "package": "com.mealflow.app"
+      "package": "com.mealflow.app",
+      "googleServicesFile": "./google-services.json"
     },
     "plugins": [
+      "@react-native-firebase/app",
+      "@react-native-firebase/auth",
       [
         "expo-splash-screen",
         {
