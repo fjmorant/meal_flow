@@ -1,9 +1,11 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useGenerateMealPlan } from '@/hooks/useGenerateMealPlan';
+import { useSaveMealPlan } from '@/hooks/useSaveMealPlan';
 import type { RootStackParamList } from '@/types/navigation';
 import { DAYS } from '@/types/mealPlan';
 
@@ -19,6 +21,14 @@ export function MealPlanScreen({ route }: Props) {
     householdSize,
     preferences,
   });
+
+  const { mutate: savePlan } = useSaveMealPlan();
+
+  useEffect(() => {
+    if (data) {
+      savePlan({ plan: data, ingredientsInput: ingredients });
+    }
+  }, [data]);
 
   function handleRegenerate() {
     queryClient.removeQueries({ queryKey });

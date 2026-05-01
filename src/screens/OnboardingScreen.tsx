@@ -1,8 +1,10 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { useLastMealPlan } from '@/hooks/useLastMealPlan';
+import { saveOnboardingData } from '@/lib/onboardingStorage';
 import type { RootStackParamList } from '@/types/navigation';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Onboarding'>;
@@ -12,8 +14,18 @@ export function OnboardingScreen({ navigation }: Props) {
   const [dietaryRestrictions, setDietaryRestrictions] = useState('');
   const [cuisineStyle, setCuisineStyle] = useState('');
 
-  function handleContinue() {
-    navigation.navigate('Input', {
+  const { data: lastPlan, isPending: loadingLastPlan } = useLastMealPlan();
+
+  async function handleContinue() {
+    const data = { householdSize, preferences: { dietaryRestrictions, cuisineStyle } };
+    await saveOnboardingData(data);
+    navigation.navigate('Input', data);
+  }
+
+  function handleViewLastPlan() {
+    if (!lastPlan) return;
+    navigation.navigate('MealPlan', {
+      ingredients: lastPlan.ingredientsInput,
       householdSize,
       preferences: { dietaryRestrictions, cuisineStyle },
     });
@@ -61,9 +73,19 @@ export function OnboardingScreen({ navigation }: Props) {
         />
       </View>
 
-      <Pressable style={styles.button} onPress={handleContinue}>
-        <Text style={styles.buttonText}>Continue</Text>
-      </Pressable>
+      <View style={styles.footer}>
+        {loadingLastPlan ? (
+          <ActivityIndicator color="#208AEF" />
+        ) : lastPlan ? (
+          <Pressable style={styles.secondaryButton} onPress={handleViewLastPlan}>
+            <Text style={styles.secondaryButtonText}>View last plan</Text>
+          </Pressable>
+        ) : null}
+
+        <Pressable style={styles.button} onPress={handleContinue}>
+          <Text style={styles.buttonText}>Continue</Text>
+        </Pressable>
+      </View>
     </SafeAreaView>
   );
 }
@@ -120,12 +142,27 @@ const styles = StyleSheet.create({
     padding: 12,
     fontSize: 16,
   },
+  footer: {
+    marginTop: 'auto',
+    gap: 12,
+  },
+  secondaryButton: {
+    borderWidth: 1,
+    borderColor: '#208AEF',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  secondaryButtonText: {
+    color: '#208AEF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
   button: {
     backgroundColor: '#208AEF',
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
-    marginTop: 'auto',
   },
   buttonText: {
     color: '#fff',
