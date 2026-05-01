@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__trello__add_card_to_list"
+    ]
+  }
+}

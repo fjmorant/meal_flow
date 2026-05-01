@@ -17,6 +17,9 @@ importers:
       '@react-native-firebase/firestore':
         specifier: ^24.0.0
         version: 24.0.0(@react-native-firebase/app@24.0.0(expo@55.0.18)(react-native@0.83.6(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0))(react@19.2.0))(react-native@0.83.6(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0))
+      '@react-native-firebase/functions':
+        specifier: ^24.0.0
+        version: 24.0.0(@react-native-firebase/app@24.0.0(expo@55.0.18)(react-native@0.83.6(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0))(react@19.2.0))
       '@react-navigation/native':
         specifier: ^7.1.33
         version: 7.2.2(react-native@0.83.6(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0))(react@19.2.0)
@@ -29,6 +32,9 @@ importers:
       expo:
         specifier: ~55.0.18
         version: 55.0.18(@babel/core@7.29.0)(@expo/dom-webview@55.0.5)(react-native-worklets@0.7.4(@babel/core@7.29.0)(react-native@0.83.6(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0))(react@19.2.0))(react-native@0.83.6(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0))(react@19.2.0)(typescript@5.9.3)
+      expo-build-properties:
+        specifier: ^55.0.13
+        version: 55.0.13(expo@55.0.18)
       expo-constants:
         specifier: ~55.0.15
         version: 55.0.15(expo@55.0.18)(react-native@0.83.6(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0))
@@ -1084,6 +1090,11 @@ packages:
     peerDependencies:
       '@react-native-firebase/app': 24.0.0
 
+  '@react-native-firebase/functions@24.0.0':
+    resolution: {integrity: sha512-831TBgJgH0zeLby/drkFLpOumst1BaH+0xv4wQUw9H5x7TpwJbjLXMl6BLX79bVEX+7ZVDAxWzHnYGpwX0ihvQ==, tarball: https://registry.npmjs.org/@react-native-firebase/functions/-/functions-24.0.0.tgz}
+    peerDependencies:
+      '@react-native-firebase/app': 24.0.0
+
   '@react-native/assets-registry@0.83.6':
     resolution: {integrity: sha512-iljb4ue1yWJ3EhySz7EjV6CzSVrI2uNtR8BI2jzP5+QS5E4Cl3fdIJRmVwDEx1pu8uE97PGEusGRHnoaZ9Q3jg==, tarball: https://registry.npmjs.org/@react-native/assets-registry/-/assets-registry-0.83.6.tgz}
     engines: {node: '>= 20.19.4'}
@@ -1678,6 +1689,11 @@ packages:
       expo: '*'
       react: '*'
       react-native: '*'
+
+  expo-build-properties@55.0.13:
+    resolution: {integrity: sha512-UYZhUKyh7YQhbJdkBvo68WUQ7fOtZeSV7F8kfYkjEiN/ADRHG0WfEIiddvGfi9cH/5iwpptv/+Lu5cx6uvfegA==, tarball: https://registry.npmjs.org/expo-build-properties/-/expo-build-properties-55.0.13.tgz}
+    peerDependencies:
+      expo: '*'
 
   expo-constants@55.0.15:
     resolution: {integrity: sha512-w394fcZLJjeKN+9ZnJzL/HiarE1nwZFDa+3S9frevh6Ur+MAAs9QDrcXhDrV8T3xqRzzYaqsP6Z8TFZ4efWN1A==, tarball: https://registry.npmjs.org/expo-constants/-/expo-constants-55.0.15.tgz}
@@ -4406,6 +4422,10 @@ snapshots:
     transitivePeerDependencies:
       - react-native
 
+  '@react-native-firebase/functions@24.0.0(@react-native-firebase/app@24.0.0(expo@55.0.18)(react-native@0.83.6(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0))(react@19.2.0))':
+    dependencies:
+      '@react-native-firebase/app': 24.0.0(expo@55.0.18)(react-native@0.83.6(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0))(react@19.2.0)
+
   '@react-native/assets-registry@0.83.6': {}
 
   '@react-native/babel-plugin-codegen@0.83.6(@babel/core@7.29.0)':
@@ -5098,6 +5118,13 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
       - typescript
+
+  expo-build-properties@55.0.13(expo@55.0.18):
+    dependencies:
+      '@expo/schema-utils': 55.0.3
+      expo: 55.0.18(@babel/core@7.29.0)(@expo/dom-webview@55.0.5)(react-native-worklets@0.7.4(@babel/core@7.29.0)(react-native@0.83.6(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0))(react@19.2.0))(react-native@0.83.6(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0))(react@19.2.0)(typescript@5.9.3)
+      resolve-from: 5.0.0
+      semver: 7.7.4
 
   expo-constants@55.0.15(expo@55.0.18)(react-native@0.83.6(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0)):
     dependencies:
