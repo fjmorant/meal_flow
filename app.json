@@ -18,7 +18,10 @@
         "foregroundImage": "./assets/images/android-icon-foreground.png"
       },
       "package": "com.mealflow.app",
-      "googleServicesFile": "./google-services.json"
+      "googleServicesFile": "./google-services.json",
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "plugins": [
       "@react-native-firebase/app",
@@ -53,6 +56,12 @@
     ],
     "experiments": {
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "9a9708fd-b419-47c4-a23e-75d5d1a88760"
+      }
+    },
+    "owner": "morant"
   }
 }
