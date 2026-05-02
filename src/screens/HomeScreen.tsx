@@ -1,77 +1,121 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
+import { useLayoutEffect, useRef } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { useLastMealPlan } from '@/hooks/useLastMealPlan';
+import { useDeleteMealPlan } from '@/hooks/useDeleteMealPlan';
+import { useMealPlans } from '@/hooks/useMealPlans';
+import type { SavedMealPlan } from '@/hooks/useMealPlans';
 import { loadOnboardingData } from '@/lib/onboardingStorage';
-import { DAYS } from '@/types/mealPlan';
-import type { RootStackParamList } from '@/types/navigation';
+import type { PlansStackParamList } from '@/types/navigation';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
+type Props = NativeStackScreenProps<PlansStackParamList, 'Home'>;
+
+function formatDate(date: Date): string {
+  return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+interface PlanCardProps {
+  plan: SavedMealPlan;
+  onOpen: (plan: SavedMealPlan) => void;
+  onDelete: (id: string) => void;
+}
+
+function PlanCard({ plan, onOpen, onDelete }: PlanCardProps) {
+  const swipeableRef = useRef<InstanceType<typeof ReanimatedSwipeable>>(null);
+
+  function renderRightActions() {
+    return (
+      <Pressable
+        style={styles.deleteAction}
+        onPress={() => {
+          swipeableRef.current?.close();
+          onDelete(plan.id);
+        }}>
+        <Text style={styles.deleteActionText}>Delete</Text>
+      </Pressable>
+    );
+  }
+
+  return (
+    <ReanimatedSwipeable
+      ref={swipeableRef}
+      renderRightActions={renderRightActions}
+      friction={2}
+      rightThreshold={60}
+      overshootRight={false}>
+      <Pressable style={styles.planCard} onPress={() => onOpen(plan)}>
+        <View style={styles.planCardHeader}>
+          <Text style={styles.planDate}>{formatDate(plan.createdAt)}</Text>
+          <Text style={styles.planArrow}>›</Text>
+        </View>
+        <Text style={styles.planIngredients} numberOfLines={2}>
+          {plan.ingredientsInput}
+        </Text>
+        <Text style={styles.planPreviewText} numberOfLines={1}>
+          Mon: {plan.plan.week.monday.lunch} · {plan.plan.week.monday.dinner}
+        </Text>
+      </Pressable>
+    </ReanimatedSwipeable>
+  );
+}
 
 export function HomeScreen({ navigation }: Props) {
-  const { data: lastPlan, isPending } = useLastMealPlan();
+  const { data: plans, isPending } = useMealPlans();
+  const { mutate: deletePlan } = useDeleteMealPlan();
 
   async function handleGenerateNew() {
     const saved = await loadOnboardingData();
-    navigation.navigate('Input', {
+    // Input lives in the root stack, above the tab navigator
+    (navigation.getParent() as any)?.navigate('Input', {
       householdSize: saved?.householdSize ?? 2,
       preferences: saved?.preferences ?? { dietaryRestrictions: '', cuisineStyle: '' },
     });
   }
 
-  return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <Text style={styles.title}>MealFlow</Text>
-          <Pressable onPress={() => navigation.navigate('Onboarding')} hitSlop={12}>
-            <Text style={styles.settingsIcon}>⚙️</Text>
-          </Pressable>
-        </View>
+  function handleOpenPlan(plan: SavedMealPlan) {
+    navigation.navigate('MealPlan', {
+      ingredients: plan.ingredientsInput,
+      householdSize: 2,
+      preferences: { dietaryRestrictions: '', cuisineStyle: '' },
+      savedPlan: plan.plan,
+    });
+  }
 
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <Pressable onPress={handleGenerateNew} hitSlop={12}>
+          <Text style={styles.headerAction}>+ New</Text>
+        </Pressable>
+      ),
+    });
+  }, [navigation]);
+
+  return (
+    <SafeAreaView style={styles.container} edges={['bottom']}>
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         {isPending ? (
           <ActivityIndicator color="#208AEF" style={styles.loader} />
-        ) : lastPlan ? (
+        ) : plans && plans.length > 0 ? (
           <>
-            <Text style={styles.sectionTitle}>This week</Text>
-            {DAYS.map(day => (
-              <Pressable
-                key={day}
-                style={styles.dayCard}
-                onPress={() =>
-                  navigation.navigate('MealPlan', {
-                    ingredients: lastPlan.ingredientsInput,
-                    householdSize: 2,
-                    preferences: { dietaryRestrictions: '', cuisineStyle: '' },
-                  })
-                }>
-                <Text style={styles.dayName}>
-                  {day.charAt(0).toUpperCase() + day.slice(1)}
-                </Text>
-                <View style={styles.meals}>
-                  <Text style={styles.mealText} numberOfLines={1}>
-                    🍽 {lastPlan.plan.week[day].lunch}
-                  </Text>
-                  <Text style={styles.mealText} numberOfLines={1}>
-                    🌙 {lastPlan.plan.week[day].dinner}
-                  </Text>
-                </View>
-              </Pressable>
+            <Text style={styles.sectionTitle}>Your meal plans</Text>
+            {plans.map(plan => (
+              <PlanCard
+                key={plan.id}
+                plan={plan}
+                onOpen={handleOpenPlan}
+                onDelete={deletePlan}
+              />
             ))}
           </>
         ) : (
           <View style={styles.empty}>
-            <Text style={styles.emptyText}>No meal plan yet.</Text>
-            <Text style={styles.emptySubtext}>Generate your first weekly plan below.</Text>
+            <Text style={styles.emptyText}>No meal plans yet.</Text>
+            <Text style={styles.emptySubtext}>Tap "+ New" to generate your first weekly plan.</Text>
           </View>
         )}
-
-        <Pressable style={styles.button} onPress={handleGenerateNew}>
-          <Text style={styles.buttonText}>
-            {lastPlan ? 'Generate new plan' : 'Generate my first plan'}
-          </Text>
-        </Pressable>
       </ScrollView>
     </SafeAreaView>
   );
@@ -86,18 +130,10 @@ const styles = StyleSheet.create({
     padding: 24,
     gap: 12,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  title: {
-    fontSize: 32,
+  headerAction: {
+    color: '#208AEF',
+    fontSize: 16,
     fontWeight: '700',
-  },
-  settingsIcon: {
-    fontSize: 22,
   },
   sectionTitle: {
     fontSize: 20,
@@ -107,23 +143,47 @@ const styles = StyleSheet.create({
   loader: {
     marginVertical: 40,
   },
-  dayCard: {
+  planCard: {
     backgroundColor: '#f5f5f5',
     borderRadius: 12,
     padding: 16,
     gap: 6,
   },
-  dayName: {
+  planCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  planDate: {
     fontSize: 15,
     fontWeight: '700',
     color: '#208AEF',
   },
-  meals: {
-    gap: 2,
+  planArrow: {
+    fontSize: 20,
+    color: '#208AEF',
+    fontWeight: '600',
   },
-  mealText: {
-    fontSize: 14,
+  planIngredients: {
+    fontSize: 13,
+    color: '#666',
+  },
+  planPreviewText: {
+    fontSize: 13,
     color: '#333',
+  },
+  deleteAction: {
+    backgroundColor: '#e53e3e',
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 88,
+    borderRadius: 12,
+    marginLeft: 8,
+  },
+  deleteActionText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 15,
   },
   empty: {
     alignItems: 'center',
@@ -137,17 +197,6 @@ const styles = StyleSheet.create({
   emptySubtext: {
     fontSize: 14,
     color: '#666',
-  },
-  button: {
-    backgroundColor: '#208AEF',
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
+    textAlign: 'center',
   },
 });

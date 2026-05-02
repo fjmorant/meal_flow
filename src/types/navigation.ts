@@ -1,18 +1,30 @@
+import type { MealPlan } from '@/types/mealPlan';
+
 export type Preferences = {
   dietaryRestrictions: string;
   cuisineStyle: string;
 };
 
+// Root stack — holds the tab navigator, onboarding, and Input modal
 export type RootStackParamList = {
   Onboarding: undefined;
+  MainTabs: undefined;
+  Input: { householdSize: number; preferences: Preferences };
+};
+
+// Bottom tab navigator
+export type TabParamList = {
+  Plans: undefined;
+  Settings: undefined;
+};
+
+// Stack nested inside the Plans tab
+export type PlansStackParamList = {
   Home: undefined;
-  Input: {
-    householdSize: number;
-    preferences: Preferences;
-  };
   MealPlan: {
     ingredients: string;
     householdSize: number;
     preferences: Preferences;
+    savedPlan?: MealPlan;
   };
 };

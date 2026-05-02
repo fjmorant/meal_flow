@@ -1,42 +1,50 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect } from 'react';
+import { useEffect, useLayoutEffect } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useGenerateMealPlan } from '@/hooks/useGenerateMealPlan';
 import { useSaveMealPlan } from '@/hooks/useSaveMealPlan';
-import type { RootStackParamList } from '@/types/navigation';
+import type { PlansStackParamList } from '@/types/navigation';
 import { DAYS } from '@/types/mealPlan';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'MealPlan'>;
+type Props = NativeStackScreenProps<PlansStackParamList, 'MealPlan'>;
 
 export function MealPlanScreen({ route, navigation }: Props) {
-  const { ingredients, householdSize, preferences } = route.params;
+  const { ingredients, householdSize, preferences, savedPlan } = route.params;
   const queryClient = useQueryClient();
   const queryKey = ['meal_plan', ingredients, householdSize, preferences];
 
-  const { data, isPending, isError, refetch } = useGenerateMealPlan({
-    ingredients,
-    householdSize,
-    preferences,
-  });
+  const generated = useGenerateMealPlan(
+    { ingredients, householdSize, preferences },
+  );
 
   const { mutate: savePlan } = useSaveMealPlan();
 
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerLeft: () => (
+        <Pressable onPress={() => navigation.navigate('Home')} hitSlop={12}>
+          <Text style={styles.headerBack}>← Plans</Text>
+        </Pressable>
+      ),
+    });
+  }, [navigation]);
+
+  const data = savedPlan ?? generated.data;
+  const isPending = !savedPlan && generated.isPending;
+  const isError = !savedPlan && generated.isError;
+
   useEffect(() => {
-    if (data) {
-      savePlan({ plan: data, ingredientsInput: ingredients });
+    if (!savedPlan && generated.data) {
+      savePlan({ plan: generated.data, ingredientsInput: ingredients });
     }
-  }, [data]);
+  }, [generated.data]);
 
   function handleRegenerate() {
     queryClient.removeQueries({ queryKey });
-    refetch();
-  }
-
-  function handleDone() {
-    navigation.navigate('Home');
+    generated.refetch();
   }
 
   if (isPending) {
@@ -52,7 +60,7 @@ export function MealPlanScreen({ route, navigation }: Props) {
     return (
       <SafeAreaView style={styles.centered}>
         <Text style={styles.errorText}>Something went wrong. Please try again.</Text>
-        <Pressable style={styles.button} onPress={() => refetch()}>
+        <Pressable style={styles.button} onPress={() => generated.refetch()}>
           <Text style={styles.buttonText}>Retry</Text>
         </Pressable>
       </SafeAreaView>
@@ -60,7 +68,7 @@ export function MealPlanScreen({ route, navigation }: Props) {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['bottom']}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <Text style={styles.title}>Your Weekly Plan</Text>
 
@@ -91,13 +99,11 @@ export function MealPlanScreen({ route, navigation }: Props) {
           </View>
         ))}
 
-        <Pressable style={styles.button} onPress={handleRegenerate}>
-          <Text style={styles.buttonText}>Regenerate plan</Text>
-        </Pressable>
-
-        <Pressable style={styles.secondaryButton} onPress={handleDone}>
-          <Text style={styles.secondaryButtonText}>Back to home</Text>
-        </Pressable>
+        {!savedPlan && (
+          <Pressable style={styles.button} onPress={handleRegenerate}>
+            <Text style={styles.buttonText}>Regenerate plan</Text>
+          </Pressable>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -179,6 +185,11 @@ const styles = StyleSheet.create({
     color: '#e53e3e',
     textAlign: 'center',
   },
+  headerBack: {
+    color: '#208AEF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
   button: {
     backgroundColor: '#208AEF',
     padding: 16,
@@ -190,17 +201,5 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '700',
-  },
-  secondaryButton: {
-    borderWidth: 1,
-    borderColor: '#208AEF',
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  secondaryButtonText: {
-    color: '#208AEF',
-    fontSize: 16,
-    fontWeight: '600',
   },
 });

@@ -1,28 +1,34 @@
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { saveOnboardingData } from '@/lib/onboardingStorage';
-import type { RootStackParamList } from '@/types/navigation';
+import { loadOnboardingData, saveOnboardingData } from '@/lib/onboardingStorage';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Onboarding'>;
-
-export function OnboardingScreen({ navigation }: Props) {
+export function SettingsScreen() {
   const [householdSize, setHouseholdSize] = useState(2);
   const [dietaryRestrictions, setDietaryRestrictions] = useState('');
   const [cuisineStyle, setCuisineStyle] = useState('');
 
-  async function handleContinue() {
-    await saveOnboardingData({ householdSize, preferences: { dietaryRestrictions, cuisineStyle } });
-    navigation.replace('MainTabs');
+  useEffect(() => {
+    loadOnboardingData().then(data => {
+      if (data) {
+        setHouseholdSize(data.householdSize);
+        setDietaryRestrictions(data.preferences.dietaryRestrictions);
+        setCuisineStyle(data.preferences.cuisineStyle);
+      }
+    });
+  }, []);
+
+  async function handleSave() {
+    await saveOnboardingData({
+      householdSize,
+      preferences: { dietaryRestrictions, cuisineStyle },
+    });
+    Alert.alert('Saved', 'Your preferences have been updated.');
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <Text style={styles.title}>Welcome to MealFlow</Text>
-      <Text style={styles.subtitle}>Let's set up your meal preferences</Text>
-
+    <SafeAreaView style={styles.container} edges={['bottom']}>
       <View style={styles.field}>
         <Text style={styles.label}>Household size</Text>
         <View style={styles.stepper}>
@@ -61,8 +67,8 @@ export function OnboardingScreen({ navigation }: Props) {
       </View>
 
       <View style={styles.footer}>
-        <Pressable style={styles.button} onPress={handleContinue}>
-          <Text style={styles.buttonText}>Get started</Text>
+        <Pressable style={styles.button} onPress={handleSave}>
+          <Text style={styles.buttonText}>Save preferences</Text>
         </Pressable>
       </View>
     </SafeAreaView>
@@ -75,15 +81,6 @@ const styles = StyleSheet.create({
     padding: 24,
     gap: 24,
     backgroundColor: '#fff',
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: '700',
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#666',
-    marginTop: -16,
   },
   field: {
     gap: 8,

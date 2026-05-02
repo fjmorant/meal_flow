@@ -28,7 +28,7 @@ export function useSaveMealPlan() {
     onSuccess: () => {
       const userId = auth().currentUser?.uid;
       if (userId) {
-        queryClient.invalidateQueries({ queryKey: queryKeys.mealPlans.last(userId) });
+        queryClient.invalidateQueries({ queryKey: queryKeys.mealPlans.all(userId) });
       }
     },
   });

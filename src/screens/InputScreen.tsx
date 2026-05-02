@@ -2,7 +2,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
-import { useState } from 'react';
+import { useLayoutEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -17,9 +17,26 @@ export function InputScreen({ route, navigation }: Props) {
 
   const { mutate: extractIngredients, isPending: isExtracting } = useExtractIngredients();
 
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <Pressable onPress={() => navigation.goBack()} hitSlop={12}>
+          <Text style={styles.closeButton}>✕</Text>
+        </Pressable>
+      ),
+    });
+  }, [navigation]);
+
   function handleGenerate() {
     if (!ingredients.trim()) return;
-    navigation.navigate('MealPlan', { ingredients: ingredients.trim(), householdSize, preferences });
+    // MealPlan lives in PlansStack → Plans tab → MainTabs
+    (navigation as any).navigate('MainTabs', {
+      screen: 'Plans',
+      params: {
+        screen: 'MealPlan',
+        params: { ingredients: ingredients.trim(), householdSize, preferences },
+      },
+    });
   }
 
   async function handlePickPhoto() {
@@ -67,7 +84,7 @@ export function InputScreen({ route, navigation }: Props) {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['bottom']}>
       <Text style={styles.title}>What ingredients do you already have?</Text>
       <Text style={styles.subtitle}>List what's in your fridge and pantry</Text>
 
@@ -110,6 +127,11 @@ export function InputScreen({ route, navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
+  closeButton: {
+    fontSize: 18,
+    color: '#666',
+    fontWeight: '500',
+  },
   container: {
     flex: 1,
     padding: 24,
