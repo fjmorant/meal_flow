@@ -5,6 +5,7 @@ export type Preferences = {
 
 export type RootStackParamList = {
   Onboarding: undefined;
+  Home: undefined;
   Input: {
     householdSize: number;
     preferences: Preferences;

@@ -11,7 +11,7 @@ import { DAYS } from '@/types/mealPlan';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'MealPlan'>;
 
-export function MealPlanScreen({ route }: Props) {
+export function MealPlanScreen({ route, navigation }: Props) {
   const { ingredients, householdSize, preferences } = route.params;
   const queryClient = useQueryClient();
   const queryKey = ['meal_plan', ingredients, householdSize, preferences];
@@ -33,6 +33,10 @@ export function MealPlanScreen({ route }: Props) {
   function handleRegenerate() {
     queryClient.removeQueries({ queryKey });
     refetch();
+  }
+
+  function handleDone() {
+    navigation.navigate('Home');
   }
 
   if (isPending) {
@@ -89,6 +93,10 @@ export function MealPlanScreen({ route }: Props) {
 
         <Pressable style={styles.button} onPress={handleRegenerate}>
           <Text style={styles.buttonText}>Regenerate plan</Text>
+        </Pressable>
+
+        <Pressable style={styles.secondaryButton} onPress={handleDone}>
+          <Text style={styles.secondaryButtonText}>Back to home</Text>
         </Pressable>
       </ScrollView>
     </SafeAreaView>
@@ -182,5 +190,17 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '700',
+  },
+  secondaryButton: {
+    borderWidth: 1,
+    borderColor: '#208AEF',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  secondaryButtonText: {
+    color: '#208AEF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

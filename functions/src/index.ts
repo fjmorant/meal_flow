@@ -146,3 +146,56 @@ Generate the weekly meal plan.`;
     }
   }
 );
+
+interface ExtractIngredientsRequest {
+  fileBase64: string;
+  mediaType: string;
+}
+
+export const extractIngredients = onCall(
+  { secrets: [anthropicApiKey], region: 'europe-west1' },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Authentication required.');
+    }
+
+    const { fileBase64, mediaType } = request.data as ExtractIngredientsRequest;
+
+    if (!fileBase64) {
+      throw new HttpsError('invalid-argument', 'File data is required.');
+    }
+
+    logger.info('Extracting ingredients', { mediaType });
+
+    const client = new Anthropic({ apiKey: anthropicApiKey.value() });
+
+    const isPdf = mediaType === 'application/pdf';
+
+    const message = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 512,
+      messages: [
+        {
+          role: 'user',
+          content: [
+            isPdf
+              ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: fileBase64 } }
+              : { type: 'image', source: { type: 'base64', media_type: mediaType as 'image/jpeg' | 'image/png' | 'image/webp', data: fileBase64 } },
+            {
+              type: 'text',
+              text: 'List all food ingredients and grocery items you can identify. Return only a plain comma-separated list of ingredients, nothing else. No quantities, no explanations.',
+            },
+          ],
+        },
+      ],
+    });
+
+    const content = message.content[0];
+    if (content.type !== 'text') {
+      throw new HttpsError('internal', 'Unexpected response from Claude.');
+    }
+
+    logger.info('Ingredients extracted', { result: content.text.slice(0, 200) });
+    return { ingredients: content.text.trim() };
+  }
+);

@@ -34,6 +34,13 @@
         }
       ],
       [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow MealFlow to access your photos to extract ingredients.",
+          "cameraPermission": "Allow MealFlow to use the camera to scan your fridge."
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "backgroundColor": "#208AEF",

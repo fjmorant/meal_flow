@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.generateMealPlan = void 0;
+exports.extractIngredients = exports.generateMealPlan = void 0;
 const sdk_1 = require("@anthropic-ai/sdk");
 const app_1 = require("firebase-admin/app");
 const https_1 = require("firebase-functions/v2/https");
@@ -97,5 +97,41 @@ Generate the weekly meal plan.`;
         firebase_functions_1.logger.error('JSON parse failed', { raw: cleaned, err });
         throw new https_1.HttpsError('internal', 'Failed to parse meal plan response.');
     }
+});
+exports.extractIngredients = (0, https_1.onCall)({ secrets: [anthropicApiKey], region: 'europe-west1' }, async (request) => {
+    if (!request.auth) {
+        throw new https_1.HttpsError('unauthenticated', 'Authentication required.');
+    }
+    const { fileBase64, mediaType } = request.data;
+    if (!fileBase64) {
+        throw new https_1.HttpsError('invalid-argument', 'File data is required.');
+    }
+    firebase_functions_1.logger.info('Extracting ingredients', { mediaType });
+    const client = new sdk_1.default({ apiKey: anthropicApiKey.value() });
+    const isPdf = mediaType === 'application/pdf';
+    const message = await client.messages.create({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 512,
+        messages: [
+            {
+                role: 'user',
+                content: [
+                    isPdf
+                        ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: fileBase64 } }
+                        : { type: 'image', source: { type: 'base64', media_type: mediaType, data: fileBase64 } },
+                    {
+                        type: 'text',
+                        text: 'List all food ingredients and grocery items you can identify. Return only a plain comma-separated list of ingredients, nothing else. No quantities, no explanations.',
+                    },
+                ],
+            },
+        ],
+    });
+    const content = message.content[0];
+    if (content.type !== 'text') {
+        throw new https_1.HttpsError('internal', 'Unexpected response from Claude.');
+    }
+    firebase_functions_1.logger.info('Ingredients extracted', { result: content.text.slice(0, 200) });
+    return { ingredients: content.text.trim() };
 });
 //# sourceMappingURL=index.js.map

@@ -19,7 +19,7 @@ export function OnboardingScreen({ navigation }: Props) {
   async function handleContinue() {
     const data = { householdSize, preferences: { dietaryRestrictions, cuisineStyle } };
     await saveOnboardingData(data);
-    navigation.navigate('Input', data);
+    navigation.navigate('Home');
   }
 
   function handleViewLastPlan() {
