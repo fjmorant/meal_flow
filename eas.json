@@ -27,7 +27,12 @@
   "submit": {
     "production": {
       "ios": {
-        "appleId": "javier.morant84@gmail.com"
+        "appleId": "javier.morant84@gmail.com",
+        "ascAppId": "com.morant.mealflow"
+      },
+      "android": {
+        "serviceAccountKeyPath": "./google-play-service-account.json",
+        "track": "internal"
       }
     }
   }

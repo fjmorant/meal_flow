@@ -7,7 +7,15 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "prebuild": "expo prebuild",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "build:ios": "eas build --platform ios --profile production",
+    "build:android": "eas build --platform android --profile production",
+    "build:all": "eas build --platform all --profile production",
+    "submit:ios": "eas submit --platform ios --profile production",
+    "submit:android": "eas submit --platform android --profile production",
+    "release:ios": "eas build --platform ios --profile production --auto-submit",
+    "release:android": "eas build --platform android --profile production --auto-submit",
+    "release:all": "eas build --platform all --profile production --auto-submit"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "^3.0.2",
