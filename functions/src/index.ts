@@ -19,7 +19,6 @@ interface GenerateMealPlanRequest {
   preferences: Preferences;
   householdSize: number;
   mode?: 'ingredients' | 'scratch';
-  language?: string;
 }
 
 interface DayPlan {
@@ -81,10 +80,10 @@ export const generateMealPlan = onCall(
       throw new HttpsError('unauthenticated', 'Authentication required.');
     }
 
-    const { ingredients, preferences, householdSize, mode, language } =
+    const { ingredients, preferences, householdSize, mode } =
       request.data as GenerateMealPlanRequest;
 
-    logger.info('Request data', { ingredients, householdSize, preferences, mode, language });
+    logger.info('Request data', { ingredients, householdSize, preferences, mode });
 
     const isScratch = mode === 'scratch' || !ingredients?.trim();
 
@@ -98,25 +97,19 @@ export const generateMealPlan = onCall(
     try {
       const client = new Anthropic({ apiKey: anthropicApiKey.value() });
 
-      const langInstruction = language === 'es'
-        ? 'Write all meal names and shopping list items in Spanish.'
-        : 'Write all meal names and shopping list items in English.';
-
       const userPrompt = isScratch
         ? `Household size: ${householdSize} ${householdSize === 1 ? 'person' : 'people'}
 Dietary restrictions: ${preferences.dietaryRestrictions || 'none'}
 Cuisine style preference: ${preferences.cuisineStyle || 'any'}
 
-No specific ingredients — suggest a practical, balanced weekly meal plan. Include a comprehensive shopping list with everything needed to cook these meals.
-${langInstruction}`
+No specific ingredients — suggest a practical, balanced weekly meal plan. Include a comprehensive shopping list with everything needed to cook these meals.`
         : `Available ingredients: ${ingredients}
 
 Household size: ${householdSize} ${householdSize === 1 ? 'person' : 'people'}
 Dietary restrictions: ${preferences.dietaryRestrictions || 'none'}
 Cuisine style preference: ${preferences.cuisineStyle || 'any'}
 
-Generate the weekly meal plan.
-${langInstruction}`;
+Generate the weekly meal plan.`;
 
       message = await client.messages.create({
         model: 'claude-haiku-4-5-20251001',
@@ -220,7 +213,6 @@ export const extractIngredients = onCall(
 interface GetMealRecipeRequest {
   mealName: string;
   servings: number;
-  language?: string;
 }
 
 export interface MealRecipe {
@@ -253,15 +245,13 @@ export const getMealRecipe = onCall(
       throw new HttpsError('unauthenticated', 'Authentication required.');
     }
 
-    const { mealName, servings, language } = request.data as GetMealRecipeRequest;
+    const { mealName, servings } = request.data as GetMealRecipeRequest;
 
     if (!mealName?.trim()) {
       throw new HttpsError('invalid-argument', 'Meal name is required.');
     }
 
-    const lang = language === 'es' ? 'es' : 'en';
-    // Stable document key: lowercase, only alphanumeric + underscore + language suffix
-    const recipeKey = `${mealName.toLowerCase().trim().replace(/[^a-z0-9]+/g, '_')}_${servings}p_${lang}`;
+    const recipeKey = `${mealName.toLowerCase().trim().replace(/[^a-z0-9]+/g, '_')}_${servings}p`;
 
     logger.info('getMealRecipe called', { mealName, recipeKey, servings });
 
@@ -281,17 +271,13 @@ export const getMealRecipe = onCall(
 
     let message;
     try {
-      const langInstruction = lang === 'es'
-        ? 'Write the recipe (ingredient names and step descriptions) in Spanish.'
-        : 'Write the recipe in English.';
-
       message = await client.messages.create({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 1024,
         system: [{ type: 'text', text: RECIPE_SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
         messages: [{
           role: 'user',
-          content: `Meal: ${mealName}\nServings: ${servings} ${servings === 1 ? 'person' : 'people'}\n${langInstruction}\n\nGenerate the recipe.`,
+          content: `Meal: ${mealName}\nServings: ${servings} ${servings === 1 ? 'person' : 'people'}\n\nGenerate the recipe.`,
         }],
       });
     } catch (err) {

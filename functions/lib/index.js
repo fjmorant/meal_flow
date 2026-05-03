@@ -42,8 +42,8 @@ exports.generateMealPlan = (0, https_1.onCall)({ secrets: [anthropicApiKey], reg
         firebase_functions_1.logger.warn('Unauthenticated request rejected');
         throw new https_1.HttpsError('unauthenticated', 'Authentication required.');
     }
-    const { ingredients, preferences, householdSize, mode, language } = request.data;
-    firebase_functions_1.logger.info('Request data', { ingredients, householdSize, preferences, mode, language });
+    const { ingredients, preferences, householdSize, mode } = request.data;
+    firebase_functions_1.logger.info('Request data', { ingredients, householdSize, preferences, mode });
     const isScratch = mode === 'scratch' || !(ingredients === null || ingredients === void 0 ? void 0 : ingredients.trim());
     if (!isScratch && !(ingredients === null || ingredients === void 0 ? void 0 : ingredients.trim())) {
         throw new https_1.HttpsError('invalid-argument', 'Ingredients are required.');
@@ -52,24 +52,19 @@ exports.generateMealPlan = (0, https_1.onCall)({ secrets: [anthropicApiKey], reg
     let message;
     try {
         const client = new sdk_1.default({ apiKey: anthropicApiKey.value() });
-        const langInstruction = language === 'es'
-            ? 'Write all meal names and shopping list items in Spanish.'
-            : 'Write all meal names and shopping list items in English.';
         const userPrompt = isScratch
             ? `Household size: ${householdSize} ${householdSize === 1 ? 'person' : 'people'}
 Dietary restrictions: ${preferences.dietaryRestrictions || 'none'}
 Cuisine style preference: ${preferences.cuisineStyle || 'any'}
 
-No specific ingredients — suggest a practical, balanced weekly meal plan. Include a comprehensive shopping list with everything needed to cook these meals.
-${langInstruction}`
+No specific ingredients — suggest a practical, balanced weekly meal plan. Include a comprehensive shopping list with everything needed to cook these meals.`
             : `Available ingredients: ${ingredients}
 
 Household size: ${householdSize} ${householdSize === 1 ? 'person' : 'people'}
 Dietary restrictions: ${preferences.dietaryRestrictions || 'none'}
 Cuisine style preference: ${preferences.cuisineStyle || 'any'}
 
-Generate the weekly meal plan.
-${langInstruction}`;
+Generate the weekly meal plan.`;
         message = await client.messages.create({
             model: 'claude-haiku-4-5-20251001',
             max_tokens: 1024,
@@ -167,13 +162,11 @@ exports.getMealRecipe = (0, https_1.onCall)({ secrets: [anthropicApiKey], region
     if (!request.auth) {
         throw new https_1.HttpsError('unauthenticated', 'Authentication required.');
     }
-    const { mealName, servings, language } = request.data;
+    const { mealName, servings } = request.data;
     if (!(mealName === null || mealName === void 0 ? void 0 : mealName.trim())) {
         throw new https_1.HttpsError('invalid-argument', 'Meal name is required.');
     }
-    const lang = language === 'es' ? 'es' : 'en';
-    // Stable document key: lowercase, only alphanumeric + underscore + language suffix
-    const recipeKey = `${mealName.toLowerCase().trim().replace(/[^a-z0-9]+/g, '_')}_${servings}p_${lang}`;
+    const recipeKey = `${mealName.toLowerCase().trim().replace(/[^a-z0-9]+/g, '_')}_${servings}p`;
     firebase_functions_1.logger.info('getMealRecipe called', { mealName, recipeKey, servings });
     // Check Firestore cache first — same meal name always yields the same recipe
     const db = (0, firestore_1.getFirestore)();
@@ -187,16 +180,13 @@ exports.getMealRecipe = (0, https_1.onCall)({ secrets: [anthropicApiKey], region
     const client = new sdk_1.default({ apiKey: anthropicApiKey.value() });
     let message;
     try {
-        const langInstruction = lang === 'es'
-            ? 'Write the recipe (ingredient names and step descriptions) in Spanish.'
-            : 'Write the recipe in English.';
         message = await client.messages.create({
             model: 'claude-haiku-4-5-20251001',
             max_tokens: 1024,
             system: [{ type: 'text', text: RECIPE_SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
             messages: [{
                     role: 'user',
-                    content: `Meal: ${mealName}\nServings: ${servings} ${servings === 1 ? 'person' : 'people'}\n${langInstruction}\n\nGenerate the recipe.`,
+                    content: `Meal: ${mealName}\nServings: ${servings} ${servings === 1 ? 'person' : 'people'}\n\nGenerate the recipe.`,
                 }],
         });
     }

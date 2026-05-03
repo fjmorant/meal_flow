@@ -1,42 +1,22 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext } from 'react';
 
-import { Language, TranslationKey, translations } from '@/lib/i18n';
-
-const LANG_KEY = 'app_language';
+import { TranslationKey, translations } from '@/lib/i18n';
 
 interface LanguageContextValue {
-  language: Language;
-  setLanguage: (lang: Language) => Promise<void>;
   t: (key: TranslationKey) => string;
 }
 
 const LanguageContext = createContext<LanguageContextValue>({
-  language: 'en',
-  setLanguage: async () => {},
   t: key => translations.en[key],
 });
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [language, setLang] = useState<Language>('en');
-
-  useEffect(() => {
-    AsyncStorage.getItem(LANG_KEY).then(val => {
-      if (val === 'en' || val === 'es') setLang(val);
-    });
-  }, []);
-
-  async function setLanguage(lang: Language) {
-    setLang(lang);
-    await AsyncStorage.setItem(LANG_KEY, lang);
-  }
-
   function t(key: TranslationKey): string {
-    return translations[language][key];
+    return translations.en[key];
   }
 
   return (
-    <LanguageContext.Provider value={{ language, setLanguage, t }}>
+    <LanguageContext.Provider value={{ t }}>
       {children}
     </LanguageContext.Provider>
   );

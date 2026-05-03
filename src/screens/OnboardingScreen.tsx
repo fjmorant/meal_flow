@@ -5,17 +5,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ChipSelector } from '@/components/ChipSelector';
 import { useTranslation } from '@/contexts/LanguageContext';
-import type { Language } from '@/lib/i18n';
-import { CUISINE_LABELS, CUISINE_OPTIONS, DIETARY_LABELS, DIETARY_OPTIONS } from '@/lib/i18n';
+import { CUISINE_OPTIONS, DIETARY_OPTIONS } from '@/lib/i18n';
 import { saveOnboardingData } from '@/lib/onboardingStorage';
 import type { RootStackParamList } from '@/types/navigation';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Onboarding'>;
 
 export function OnboardingScreen({ navigation }: Props) {
-  const { t, language, setLanguage } = useTranslation();
-  const dietaryLabels = DIETARY_LABELS[language];
-  const cuisineLabels = CUISINE_LABELS[language];
+  const { t } = useTranslation();
   const [householdSize, setHouseholdSize] = useState(2);
   const [dietarySelected, setDietarySelected] = useState<string[]>(['None']);
   const [cuisineSelected, setCuisineSelected] = useState<string[]>(['Any']);
@@ -34,22 +31,6 @@ export function OnboardingScreen({ navigation }: Props) {
         <Text style={styles.subtitle}>{t('welcomeSubtitle')}</Text>
 
         <View style={styles.field}>
-          <Text style={styles.label}>{t('language')}</Text>
-          <View style={styles.langRow}>
-            {(['en', 'es'] as Language[]).map(lang => (
-              <Pressable
-                key={lang}
-                style={[styles.langButton, language === lang && styles.langButtonActive]}
-                onPress={() => setLanguage(lang)}>
-                <Text style={[styles.langButtonText, language === lang && styles.langButtonTextActive]}>
-                  {lang === 'en' ? 'English' : 'Español'}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        </View>
-
-        <View style={styles.field}>
           <Text style={styles.label}>{t('householdSize')}</Text>
           <View style={styles.stepper}>
             <Pressable style={styles.stepButton} onPress={() => setHouseholdSize(n => Math.max(1, n - 1))}>
@@ -66,7 +47,6 @@ export function OnboardingScreen({ navigation }: Props) {
           <Text style={styles.label}>{t('dietaryRestrictions')}</Text>
           <ChipSelector
             options={DIETARY_OPTIONS}
-            labels={dietaryLabels}
             selected={dietarySelected}
             onChange={setDietarySelected}
             multiSelect
@@ -77,7 +57,6 @@ export function OnboardingScreen({ navigation }: Props) {
           <Text style={styles.label}>{t('cuisineStyle')}</Text>
           <ChipSelector
             options={CUISINE_OPTIONS}
-            labels={cuisineLabels}
             selected={cuisineSelected}
             onChange={setCuisineSelected}
           />
@@ -115,31 +94,6 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 16,
     fontWeight: '600',
-  },
-  langRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  langButton: {
-    flex: 1,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 10,
-    borderWidth: 1.5,
-    borderColor: '#ddd',
-    alignItems: 'center',
-  },
-  langButtonActive: {
-    backgroundColor: '#208AEF',
-    borderColor: '#208AEF',
-  },
-  langButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#555',
-  },
-  langButtonTextActive: {
-    color: '#fff',
   },
   stepper: {
     flexDirection: 'row',
