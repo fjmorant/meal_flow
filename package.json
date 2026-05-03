@@ -8,14 +8,12 @@
     "ios": "expo run:ios",
     "prebuild": "expo prebuild",
     "lint": "expo lint",
-    "build:ios": "eas build --platform ios --profile production",
-    "build:android": "eas build --platform android --profile production",
-    "build:all": "eas build --platform all --profile production",
-    "submit:ios": "eas submit --platform ios --profile production",
-    "submit:android": "eas submit --platform android --profile production",
-    "release:ios": "eas build --platform ios --profile production --auto-submit",
-    "release:android": "eas build --platform android --profile production --auto-submit",
-    "release:all": "eas build --platform all --profile production --auto-submit"
+    "build-local-ios": "eas build --platform ios --clear-cache --local --profile production",
+    "build-local-android": "eas build --platform android --clear-cache --local --profile production",
+    "build-remote-ios": "eas build --platform ios --auto-submit --clear-cache",
+    "build-remote-android": "eas build --platform android --auto-submit --clear-cache",
+    "submit-ios": "eas submit --platform ios",
+    "submit-android": "eas submit --platform android"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "^3.0.2",
