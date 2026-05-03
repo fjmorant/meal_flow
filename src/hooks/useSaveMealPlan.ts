@@ -1,7 +1,7 @@
-import auth from '@react-native-firebase/auth';
-import { useQueryClient, useMutation } from '@tanstack/react-query';
+import { addDoc, collection } from '@react-native-firebase/firestore';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-import { mealPlansCollection } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
 import { queryKeys } from '@/lib/queryKeys';
 import type { MealPlan } from '@/types/mealPlan';
 
@@ -15,10 +15,10 @@ export function useSaveMealPlan() {
 
   return useMutation({
     mutationFn: async ({ plan, ingredientsInput }: SaveParams) => {
-      const userId = auth().currentUser?.uid;
+      const userId = auth.currentUser?.uid;
       if (!userId) throw new Error('Not authenticated');
 
-      await mealPlansCollection().add({
+      await addDoc(collection(db, 'meal_plans'), {
         userId,
         createdAt: new Date(),
         planJson: plan,
@@ -26,7 +26,7 @@ export function useSaveMealPlan() {
       });
     },
     onSuccess: () => {
-      const userId = auth().currentUser?.uid;
+      const userId = auth.currentUser?.uid;
       if (userId) {
         queryClient.invalidateQueries({ queryKey: queryKeys.mealPlans.all(userId) });
       }

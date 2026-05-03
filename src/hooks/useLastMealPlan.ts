@@ -1,7 +1,7 @@
-import auth from '@react-native-firebase/auth';
+import { collection, getDocs, limit, orderBy, query, where } from '@react-native-firebase/firestore';
 import { useQuery } from '@tanstack/react-query';
 
-import { mealPlansCollection } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
 import { queryKeys } from '@/lib/queryKeys';
 import type { MealPlan } from '@/types/mealPlan';
 
@@ -13,24 +13,26 @@ export interface SavedMealPlan {
 }
 
 export function useLastMealPlan() {
-  const userId = auth().currentUser?.uid;
+  const userId = auth.currentUser?.uid;
 
   return useQuery({
     queryKey: queryKeys.mealPlans.last(userId ?? ''),
     enabled: !!userId,
     queryFn: async (): Promise<SavedMealPlan | null> => {
-      const snapshot = await mealPlansCollection()
-        .where('userId', '==', userId)
-        .orderBy('createdAt', 'desc')
-        .limit(1)
-        .get();
+      const q = query(
+        collection(db, 'meal_plans'),
+        where('userId', '==', userId),
+        orderBy('createdAt', 'desc'),
+        limit(1)
+      );
+      const snapshot = await getDocs(q);
 
       if (snapshot.empty) return null;
 
-      const doc = snapshot.docs[0];
-      const data = doc.data();
+      const docSnap = snapshot.docs[0];
+      const data = docSnap.data();
       return {
-        id: doc.id,
+        id: docSnap.id,
         plan: data.planJson as MealPlan,
         ingredientsInput: data.ingredientsInput as string,
         createdAt: data.createdAt.toDate(),

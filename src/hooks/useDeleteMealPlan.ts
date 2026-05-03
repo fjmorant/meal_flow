@@ -1,7 +1,7 @@
-import auth from '@react-native-firebase/auth';
+import { deleteDoc, doc } from '@react-native-firebase/firestore';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-import { mealPlansCollection } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
 import { queryKeys } from '@/lib/queryKeys';
 
 export function useDeleteMealPlan() {
@@ -9,10 +9,10 @@ export function useDeleteMealPlan() {
 
   return useMutation({
     mutationFn: async (planId: string) => {
-      await mealPlansCollection().doc(planId).delete();
+      await deleteDoc(doc(db, 'meal_plans', planId));
     },
     onSuccess: () => {
-      const userId = auth().currentUser?.uid;
+      const userId = auth.currentUser?.uid;
       if (userId) {
         queryClient.invalidateQueries({ queryKey: queryKeys.mealPlans.all(userId) });
       }

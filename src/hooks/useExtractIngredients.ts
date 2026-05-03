@@ -1,7 +1,7 @@
-import { firebase } from '@react-native-firebase/functions';
+import { httpsCallable } from '@react-native-firebase/functions';
 import { useMutation } from '@tanstack/react-query';
 
-const functionsEU = firebase.app().functions('europe-west1');
+import { functionsEU } from '@/lib/firebase';
 
 interface ExtractParams {
   fileBase64: string;
@@ -11,11 +11,9 @@ interface ExtractParams {
 export function useExtractIngredients() {
   return useMutation({
     mutationFn: async ({ fileBase64, mediaType }: ExtractParams): Promise<string> => {
-      const result = await functionsEU.httpsCallable('extractIngredients')({
-        fileBase64,
-        mediaType,
-      });
-      return (result.data as { ingredients: string }).ingredients;
+      const fn = httpsCallable<ExtractParams, { ingredients: string }>(functionsEU, 'extractIngredients');
+      const result = await fn({ fileBase64, mediaType });
+      return result.data.ingredients;
     },
   });
 }
