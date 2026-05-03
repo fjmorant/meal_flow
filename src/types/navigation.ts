@@ -9,7 +9,7 @@ export type Preferences = {
 export type RootStackParamList = {
   Onboarding: undefined;
   MainTabs: undefined;
-  Input: { householdSize: number; preferences: Preferences };
+  Input: { householdSize: number; preferences: Preferences; mode: 'ingredients' | 'scratch' };
 };
 
 // Bottom tab navigator
@@ -26,5 +26,11 @@ export type PlansStackParamList = {
     householdSize: number;
     preferences: Preferences;
     savedPlan?: MealPlan;
+    mode?: 'ingredients' | 'scratch';
+  };
+  MealDetail: {
+    mealName: string;
+    mealType: 'lunch' | 'dinner';
+    householdSize: number;
   };
 };

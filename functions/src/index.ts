@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { initializeApp } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { defineSecret } from 'firebase-functions/params';
 import { logger } from 'firebase-functions';
@@ -17,6 +18,8 @@ interface GenerateMealPlanRequest {
   ingredients: string;
   preferences: Preferences;
   householdSize: number;
+  mode?: 'ingredients' | 'scratch';
+  language?: string;
 }
 
 interface DayPlan {
@@ -78,12 +81,14 @@ export const generateMealPlan = onCall(
       throw new HttpsError('unauthenticated', 'Authentication required.');
     }
 
-    const { ingredients, preferences, householdSize } =
+    const { ingredients, preferences, householdSize, mode, language } =
       request.data as GenerateMealPlanRequest;
 
-    logger.info('Request data', { ingredients, householdSize, preferences });
+    logger.info('Request data', { ingredients, householdSize, preferences, mode, language });
 
-    if (!ingredients?.trim()) {
+    const isScratch = mode === 'scratch' || !ingredients?.trim();
+
+    if (!isScratch && !ingredients?.trim()) {
       throw new HttpsError('invalid-argument', 'Ingredients are required.');
     }
 
@@ -93,13 +98,25 @@ export const generateMealPlan = onCall(
     try {
       const client = new Anthropic({ apiKey: anthropicApiKey.value() });
 
-      const userPrompt = `Available ingredients: ${ingredients}
+      const langInstruction = language === 'es'
+        ? 'Write all meal names and shopping list items in Spanish.'
+        : 'Write all meal names and shopping list items in English.';
+
+      const userPrompt = isScratch
+        ? `Household size: ${householdSize} ${householdSize === 1 ? 'person' : 'people'}
+Dietary restrictions: ${preferences.dietaryRestrictions || 'none'}
+Cuisine style preference: ${preferences.cuisineStyle || 'any'}
+
+No specific ingredients — suggest a practical, balanced weekly meal plan. Include a comprehensive shopping list with everything needed to cook these meals.
+${langInstruction}`
+        : `Available ingredients: ${ingredients}
 
 Household size: ${householdSize} ${householdSize === 1 ? 'person' : 'people'}
 Dietary restrictions: ${preferences.dietaryRestrictions || 'none'}
 Cuisine style preference: ${preferences.cuisineStyle || 'any'}
 
-Generate the weekly meal plan.`;
+Generate the weekly meal plan.
+${langInstruction}`;
 
       message = await client.messages.create({
         model: 'claude-haiku-4-5-20251001',
@@ -197,5 +214,113 @@ export const extractIngredients = onCall(
 
     logger.info('Ingredients extracted', { result: content.text.slice(0, 200) });
     return { ingredients: content.text.trim() };
+  }
+);
+
+interface GetMealRecipeRequest {
+  mealName: string;
+  servings: number;
+  language?: string;
+}
+
+export interface MealRecipe {
+  prep_time: string;
+  cook_time: string;
+  ingredients: string[];
+  steps: string[];
+}
+
+const RECIPE_SYSTEM_PROMPT = `You are a home cooking assistant. Given a meal name and number of servings, generate a clear, practical recipe with step-by-step instructions.
+
+Rules:
+- Simple home cooking only — no restaurant techniques
+- Scale ingredients for the given number of servings
+- Steps should be short, actionable sentences
+- Return ONLY valid JSON, no markdown, no explanation
+
+Required JSON format:
+{
+  "prep_time": "X min",
+  "cook_time": "X min",
+  "ingredients": ["amount + ingredient", "..."],
+  "steps": ["Step description.", "..."]
+}`;
+
+export const getMealRecipe = onCall(
+  { secrets: [anthropicApiKey], region: 'europe-west1' },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Authentication required.');
+    }
+
+    const { mealName, servings, language } = request.data as GetMealRecipeRequest;
+
+    if (!mealName?.trim()) {
+      throw new HttpsError('invalid-argument', 'Meal name is required.');
+    }
+
+    const lang = language === 'es' ? 'es' : 'en';
+    // Stable document key: lowercase, only alphanumeric + underscore + language suffix
+    const recipeKey = `${mealName.toLowerCase().trim().replace(/[^a-z0-9]+/g, '_')}_${servings}p_${lang}`;
+
+    logger.info('getMealRecipe called', { mealName, recipeKey, servings });
+
+    // Check Firestore cache first — same meal name always yields the same recipe
+    const db = getFirestore();
+    const docRef = db.collection('meal_recipes').doc(recipeKey);
+    const cached = await docRef.get();
+
+    if (cached.exists) {
+      logger.info('Recipe cache hit', { mealName });
+      return cached.data()?.recipe as MealRecipe;
+    }
+
+    logger.info('Recipe cache miss — calling Claude', { mealName });
+
+    const client = new Anthropic({ apiKey: anthropicApiKey.value() });
+
+    let message;
+    try {
+      const langInstruction = lang === 'es'
+        ? 'Write the recipe (ingredient names and step descriptions) in Spanish.'
+        : 'Write the recipe in English.';
+
+      message = await client.messages.create({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 1024,
+        system: [{ type: 'text', text: RECIPE_SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
+        messages: [{
+          role: 'user',
+          content: `Meal: ${mealName}\nServings: ${servings} ${servings === 1 ? 'person' : 'people'}\n${langInstruction}\n\nGenerate the recipe.`,
+        }],
+      });
+    } catch (err) {
+      logger.error('Claude API call failed', err);
+      throw new HttpsError('internal', `Claude API error: ${(err as Error).message}`);
+    }
+
+    const content = message.content[0];
+    if (content.type !== 'text') {
+      throw new HttpsError('internal', 'Unexpected response from Claude.');
+    }
+
+    const cleaned = content.text
+      .replace(/^```(?:json)?\s*/i, '')
+      .replace(/\s*```\s*$/, '')
+      .trim();
+
+    let recipe: MealRecipe;
+    try {
+      recipe = JSON.parse(cleaned) as MealRecipe;
+    } catch (err) {
+      logger.error('JSON parse failed', { raw: cleaned, err });
+      throw new HttpsError('internal', 'Failed to parse recipe response.');
+    }
+
+    // Persist to Firestore so future requests for the same meal skip Claude entirely
+    await docRef.set({ mealName, recipe, createdAt: new Date() });
+    logger.info('Recipe cached in Firestore', { mealName });
+
+    return recipe;
   }
 );

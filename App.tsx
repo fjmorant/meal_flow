@@ -6,11 +6,13 @@ import { useEffect, useState } from 'react';
 import { Text } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
+import { LanguageProvider, useTranslation } from '@/contexts/LanguageContext';
 import { getOrCreateAnonymousSession } from '@/lib/firebase';
 import { loadOnboardingData } from '@/lib/onboardingStorage';
 import { queryClient } from '@/lib/queryClient';
 import { HomeScreen } from '@/screens/HomeScreen';
 import { InputScreen } from '@/screens/InputScreen';
+import { MealDetailScreen } from '@/screens/MealDetailScreen';
 import { MealPlanScreen } from '@/screens/MealPlanScreen';
 import { OnboardingScreen } from '@/screens/OnboardingScreen';
 import { SettingsScreen } from '@/screens/SettingsScreen';
@@ -28,15 +30,22 @@ const headerStyle = {
 };
 
 function PlansNavigator() {
+  const { t } = useTranslation();
   return (
     <PlansStack.Navigator screenOptions={headerStyle}>
-      <PlansStack.Screen name="Home" component={HomeScreen} options={{ title: 'MealFlow' }} />
-      <PlansStack.Screen name="MealPlan" component={MealPlanScreen} options={{ title: 'Weekly Plan' }} />
+      <PlansStack.Screen name="Home" component={HomeScreen} options={{ title: t('appName') }} />
+      <PlansStack.Screen name="MealPlan" component={MealPlanScreen} options={{ title: t('weeklyPlan') }} />
+      <PlansStack.Screen
+        name="MealDetail"
+        component={MealDetailScreen}
+        options={({ route }) => ({ title: route.params.mealName })}
+      />
     </PlansStack.Navigator>
   );
 }
 
 function TabNavigator() {
+  const { t } = useTranslation();
   return (
     <Tab.Navigator
       screenOptions={{
@@ -49,7 +58,7 @@ function TabNavigator() {
         name="Plans"
         component={PlansNavigator}
         options={{
-          tabBarLabel: 'Plans',
+          tabBarLabel: t('plans'),
           tabBarIcon: ({ color }) => <Text style={{ fontSize: 20, color }}>🗓</Text>,
         }}
       />
@@ -59,8 +68,8 @@ function TabNavigator() {
         options={{
           ...headerStyle,
           headerShown: true,
-          title: 'Settings',
-          tabBarLabel: 'Settings',
+          title: t('settings'),
+          tabBarLabel: t('settings'),
           tabBarIcon: ({ color }) => <Text style={{ fontSize: 20, color }}>⚙️</Text>,
         }}
       />
@@ -68,7 +77,8 @@ function TabNavigator() {
   );
 }
 
-export default function App() {
+function AppNavigator() {
+  const { t } = useTranslation();
   const [initialRoute, setInitialRoute] = useState<'Onboarding' | 'MainTabs' | null>(null);
 
   useEffect(() => {
@@ -83,20 +93,33 @@ export default function App() {
   if (!initialRoute) return null;
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <QueryClientProvider client={queryClient}>
-        <NavigationContainer>
-          <RootStack.Navigator initialRouteName={initialRoute} screenOptions={{ headerShown: false }}>
-            <RootStack.Screen name="Onboarding" component={OnboardingScreen} />
-            <RootStack.Screen name="MainTabs" component={TabNavigator} />
-            <RootStack.Screen
-              name="Input"
-              component={InputScreen}
-              options={{ ...headerStyle, headerShown: true, title: 'New plan', presentation: 'modal' }}
-            />
-          </RootStack.Navigator>
-        </NavigationContainer>
-      </QueryClientProvider>
-    </GestureHandlerRootView>
+    <RootStack.Navigator initialRouteName={initialRoute} screenOptions={{ headerShown: false }}>
+      <RootStack.Screen name="Onboarding" component={OnboardingScreen} />
+      <RootStack.Screen name="MainTabs" component={TabNavigator} />
+      <RootStack.Screen
+        name="Input"
+        component={InputScreen}
+        options={({ route }) => ({
+          ...headerStyle,
+          headerShown: true,
+          title: route.params.mode === 'scratch' ? t('planFromScratch') : t('newPlan'),
+          presentation: 'modal',
+        })}
+      />
+    </RootStack.Navigator>
+  );
+}
+
+export default function App() {
+  return (
+    <LanguageProvider>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <QueryClientProvider client={queryClient}>
+          <NavigationContainer>
+            <AppNavigator />
+          </NavigationContainer>
+        </QueryClientProvider>
+      </GestureHandlerRootView>
+    </LanguageProvider>
   );
 }

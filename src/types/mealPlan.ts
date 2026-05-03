@@ -20,6 +20,13 @@ export interface MealPlan {
   };
 }
 
+export interface MealRecipe {
+  prep_time: string;
+  cook_time: string;
+  ingredients: string[];
+  steps: string[];
+}
+
 export const DAYS = [
   'monday',
   'tuesday',

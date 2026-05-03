@@ -1,48 +1,52 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useLayoutEffect } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { useTranslation } from '@/contexts/LanguageContext';
 import { useGenerateMealPlan } from '@/hooks/useGenerateMealPlan';
 import { useSaveMealPlan } from '@/hooks/useSaveMealPlan';
 import type { PlansStackParamList } from '@/types/navigation';
 import { DAYS } from '@/types/mealPlan';
+import type { TranslationKey } from '@/lib/i18n';
 
 type Props = NativeStackScreenProps<PlansStackParamList, 'MealPlan'>;
 
 export function MealPlanScreen({ route, navigation }: Props) {
-  const { ingredients, householdSize, preferences, savedPlan } = route.params;
+  const { ingredients, householdSize, preferences, savedPlan, mode } = route.params;
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const queryKey = ['meal_plan', ingredients, householdSize, preferences];
+  const queryKey = ['meal_plan', mode, ingredients, householdSize, preferences];
 
-  const generated = useGenerateMealPlan(
-    { ingredients, householdSize, preferences },
-  );
+  const generated = useGenerateMealPlan({ ingredients, householdSize, preferences, mode });
 
   const { mutate: savePlan } = useSaveMealPlan();
+  const hasSaved = useRef(false);
 
   useLayoutEffect(() => {
     navigation.setOptions({
       headerLeft: () => (
-        <Pressable onPress={() => navigation.navigate('Home')} hitSlop={12}>
-          <Text style={styles.headerBack}>← Plans</Text>
+        <Pressable onPress={() => navigation.goBack()} hitSlop={12}>
+          <Text style={styles.headerBack}>{t('backToPlans')}</Text>
         </Pressable>
       ),
     });
-  }, [navigation]);
+  }, [navigation, t]);
 
   const data = savedPlan ?? generated.data;
   const isPending = !savedPlan && generated.isPending;
   const isError = !savedPlan && generated.isError;
 
   useEffect(() => {
-    if (!savedPlan && generated.data) {
+    if (!savedPlan && generated.data && !hasSaved.current) {
+      hasSaved.current = true;
       savePlan({ plan: generated.data, ingredientsInput: ingredients });
     }
   }, [generated.data]);
 
   function handleRegenerate() {
+    hasSaved.current = false;
     queryClient.removeQueries({ queryKey });
     generated.refetch();
   }
@@ -51,7 +55,7 @@ export function MealPlanScreen({ route, navigation }: Props) {
     return (
       <SafeAreaView style={styles.centered}>
         <ActivityIndicator size="large" color="#208AEF" />
-        <Text style={styles.loadingText}>Generating your meal plan...</Text>
+        <Text style={styles.loadingText}>{t('generatingPlan')}</Text>
       </SafeAreaView>
     );
   }
@@ -59,9 +63,9 @@ export function MealPlanScreen({ route, navigation }: Props) {
   if (isError) {
     return (
       <SafeAreaView style={styles.centered}>
-        <Text style={styles.errorText}>Something went wrong. Please try again.</Text>
+        <Text style={styles.errorText}>{t('somethingWentWrong')}</Text>
         <Pressable style={styles.button} onPress={() => generated.refetch()}>
-          <Text style={styles.buttonText}>Retry</Text>
+          <Text style={styles.buttonText}>{t('retry')}</Text>
         </Pressable>
       </SafeAreaView>
     );
@@ -70,29 +74,39 @@ export function MealPlanScreen({ route, navigation }: Props) {
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <Text style={styles.title}>Your Weekly Plan</Text>
+        <Text style={styles.title}>{t('yourWeeklyPlan')}</Text>
 
-        <Text style={styles.sectionTitle}>Meals</Text>
+        <Text style={styles.sectionTitle}>{t('meals')}</Text>
         {DAYS.map(day => (
           <View key={day} style={styles.dayCard}>
-            <Text style={styles.dayName}>{day.charAt(0).toUpperCase() + day.slice(1)}</Text>
-            <View style={styles.mealRow}>
-              <Text style={styles.mealLabel}>Lunch</Text>
-              <Text style={styles.mealText}>{data?.week[day].lunch}</Text>
-            </View>
-            <View style={styles.mealRow}>
-              <Text style={styles.mealLabel}>Dinner</Text>
-              <Text style={styles.mealText}>{data?.week[day].dinner}</Text>
-            </View>
+            <Text style={styles.dayName}>{t(day as TranslationKey)}</Text>
+            {(['lunch', 'dinner'] as const).map(mealType => {
+              const mealName = data?.week[day][mealType];
+              return (
+                <Pressable
+                  key={mealType}
+                  style={styles.mealRow}
+                  onPress={() =>
+                    mealName &&
+                    navigation.navigate('MealDetail', {
+                      mealName,
+                      mealType,
+                      householdSize,
+                    })
+                  }>
+                  <Text style={styles.mealLabel}>{t(mealType as TranslationKey)}</Text>
+                  <Text style={styles.mealText}>{mealName}</Text>
+                  <Text style={styles.mealArrow}>›</Text>
+                </Pressable>
+              );
+            })}
           </View>
         ))}
 
-        <Text style={styles.sectionTitle}>Shopping List</Text>
+        <Text style={styles.sectionTitle}>{t('shoppingList')}</Text>
         {(['vegetables', 'proteins', 'other'] as const).map(category => (
           <View key={category} style={styles.categoryCard}>
-            <Text style={styles.categoryName}>
-              {category.charAt(0).toUpperCase() + category.slice(1)}
-            </Text>
+            <Text style={styles.categoryName}>{t(category as TranslationKey)}</Text>
             {data?.shopping_list[category].map((item, i) => (
               <Text key={i} style={styles.listItem}>• {item}</Text>
             ))}
@@ -101,7 +115,7 @@ export function MealPlanScreen({ route, navigation }: Props) {
 
         {!savedPlan && (
           <Pressable style={styles.button} onPress={handleRegenerate}>
-            <Text style={styles.buttonText}>Regenerate plan</Text>
+            <Text style={styles.buttonText}>{t('regeneratePlan')}</Text>
           </Pressable>
         )}
       </ScrollView>
@@ -150,16 +164,23 @@ const styles = StyleSheet.create({
   mealRow: {
     flexDirection: 'row',
     gap: 8,
+    alignItems: 'center',
+    paddingVertical: 2,
   },
   mealLabel: {
     fontSize: 14,
     fontWeight: '600',
     color: '#666',
-    width: 50,
+    width: 70,
   },
   mealText: {
     fontSize: 14,
     flex: 1,
+  },
+  mealArrow: {
+    fontSize: 18,
+    color: '#208AEF',
+    fontWeight: '600',
   },
   categoryCard: {
     backgroundColor: '#f5f5f5',

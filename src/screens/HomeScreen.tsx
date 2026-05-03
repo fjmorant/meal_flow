@@ -4,6 +4,7 @@ import { useLayoutEffect, useRef } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { useTranslation } from '@/contexts/LanguageContext';
 import { useDeleteMealPlan } from '@/hooks/useDeleteMealPlan';
 import { useMealPlans } from '@/hooks/useMealPlans';
 import type { SavedMealPlan } from '@/hooks/useMealPlans';
@@ -20,9 +21,10 @@ interface PlanCardProps {
   plan: SavedMealPlan;
   onOpen: (plan: SavedMealPlan) => void;
   onDelete: (id: string) => void;
+  scratchLabel: string;
 }
 
-function PlanCard({ plan, onOpen, onDelete }: PlanCardProps) {
+function PlanCard({ plan, onOpen, onDelete, scratchLabel }: PlanCardProps) {
   const swipeableRef = useRef<InstanceType<typeof ReanimatedSwipeable>>(null);
 
   function renderRightActions() {
@@ -51,7 +53,7 @@ function PlanCard({ plan, onOpen, onDelete }: PlanCardProps) {
           <Text style={styles.planArrow}>›</Text>
         </View>
         <Text style={styles.planIngredients} numberOfLines={2}>
-          {plan.ingredientsInput}
+          {plan.ingredientsInput || scratchLabel}
         </Text>
         <Text style={styles.planPreviewText} numberOfLines={1}>
           Mon: {plan.plan.week.monday.lunch} · {plan.plan.week.monday.dinner}
@@ -62,15 +64,16 @@ function PlanCard({ plan, onOpen, onDelete }: PlanCardProps) {
 }
 
 export function HomeScreen({ navigation }: Props) {
+  const { t } = useTranslation();
   const { data: plans, isPending } = useMealPlans();
   const { mutate: deletePlan } = useDeleteMealPlan();
 
-  async function handleGenerateNew() {
+  async function handleNew(mode: 'ingredients' | 'scratch') {
     const saved = await loadOnboardingData();
-    // Input lives in the root stack, above the tab navigator
     (navigation.getParent() as any)?.navigate('Input', {
       householdSize: saved?.householdSize ?? 2,
       preferences: saved?.preferences ?? { dietaryRestrictions: '', cuisineStyle: '' },
+      mode,
     });
   }
 
@@ -84,36 +87,42 @@ export function HomeScreen({ navigation }: Props) {
   }
 
   useLayoutEffect(() => {
-    navigation.setOptions({
-      headerRight: () => (
-        <Pressable onPress={handleGenerateNew} hitSlop={12}>
-          <Text style={styles.headerAction}>+ New</Text>
-        </Pressable>
-      ),
-    });
+    navigation.setOptions({ headerRight: undefined });
   }, [navigation]);
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <View style={styles.ctaRow}>
+          <Pressable style={styles.ctaCard} onPress={() => handleNew('ingredients')}>
+            <Text style={styles.ctaTitle}>{t('fromIngredients')}</Text>
+            <Text style={styles.ctaSubtitle}>{t('useWhatYouHave')}</Text>
+          </Pressable>
+          <Pressable style={[styles.ctaCard, styles.ctaCardScratch]} onPress={() => handleNew('scratch')}>
+            <Text style={[styles.ctaTitle, styles.ctaTitleScratch]}>{t('planFromScratchCard')}</Text>
+            <Text style={styles.ctaSubtitle}>{t('getShoppingList')}</Text>
+          </Pressable>
+        </View>
+
         {isPending ? (
           <ActivityIndicator color="#208AEF" style={styles.loader} />
         ) : plans && plans.length > 0 ? (
           <>
-            <Text style={styles.sectionTitle}>Your meal plans</Text>
+            <Text style={styles.sectionTitle}>{t('yourMealPlans')}</Text>
             {plans.map(plan => (
               <PlanCard
                 key={plan.id}
                 plan={plan}
                 onOpen={handleOpenPlan}
                 onDelete={deletePlan}
+                scratchLabel={t('planFromScratchLabel')}
               />
             ))}
           </>
         ) : (
           <View style={styles.empty}>
-            <Text style={styles.emptyText}>No meal plans yet.</Text>
-            <Text style={styles.emptySubtext}>Tap "+ New" to generate your first weekly plan.</Text>
+            <Text style={styles.emptyText}>{t('noPlansYet')}</Text>
+            <Text style={styles.emptySubtext}>{t('noPlansSubtext')}</Text>
           </View>
         )}
       </ScrollView>
@@ -130,10 +139,32 @@ const styles = StyleSheet.create({
     padding: 24,
     gap: 12,
   },
-  headerAction: {
-    color: '#208AEF',
-    fontSize: 16,
+  ctaRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 8,
+  },
+  ctaCard: {
+    flex: 1,
+    backgroundColor: '#EEF6FF',
+    borderRadius: 14,
+    padding: 16,
+    gap: 4,
+  },
+  ctaCardScratch: {
+    backgroundColor: '#F0FDF4',
+  },
+  ctaTitle: {
+    fontSize: 15,
     fontWeight: '700',
+    color: '#208AEF',
+  },
+  ctaTitleScratch: {
+    color: '#16A34A',
+  },
+  ctaSubtitle: {
+    fontSize: 12,
+    color: '#666',
   },
   sectionTitle: {
     fontSize: 20,

@@ -5,6 +5,7 @@
   },
   "functions": {
     "source": "functions",
-    "codebase": "default"
+    "codebase": "default",
+    "predeploy": ["cd functions && pnpm run build"]
   }
 }
