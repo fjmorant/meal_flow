@@ -12,6 +12,9 @@ const anthropicApiKey = defineSecret('ANTHROPIC_API_KEY');
 interface Preferences {
   dietaryRestrictions: string;
   cuisineStyle: string;
+  cookingTime?: string;
+  budget?: string;
+  healthGoal?: string;
 }
 
 interface GenerateMealPlanRequest {
@@ -97,17 +100,22 @@ export const generateMealPlan = onCall(
     try {
       const client = new Anthropic({ apiKey: anthropicApiKey.value() });
 
-      const userPrompt = isScratch
-        ? `Household size: ${householdSize} ${householdSize === 1 ? 'person' : 'people'}
-Dietary restrictions: ${preferences.dietaryRestrictions || 'none'}
-Cuisine style preference: ${preferences.cuisineStyle || 'any'}
+      const prefLines = [
+        `Household size: ${householdSize} ${householdSize === 1 ? 'person' : 'people'}`,
+        `Dietary restrictions: ${preferences.dietaryRestrictions || 'none'}`,
+        `Cuisine style: ${preferences.cuisineStyle || 'any'}`,
+        `Cooking time per meal: ${preferences.cookingTime || 'any'}`,
+        `Weekly budget: ${preferences.budget || 'any'}`,
+        `Health goal: ${preferences.healthGoal || 'balanced'}`,
+      ].join('\n');
 
-No specific ingredients — suggest a practical, balanced weekly meal plan. Include a comprehensive shopping list with everything needed to cook these meals.`
+      const userPrompt = isScratch
+        ? `${prefLines}
+
+No specific ingredients — suggest a practical weekly meal plan that fits the above preferences. Include a comprehensive shopping list with everything needed to cook these meals.`
         : `Available ingredients: ${ingredients}
 
-Household size: ${householdSize} ${householdSize === 1 ? 'person' : 'people'}
-Dietary restrictions: ${preferences.dietaryRestrictions || 'none'}
-Cuisine style preference: ${preferences.cuisineStyle || 'any'}
+${prefLines}
 
 Generate the weekly meal plan.`;
 

@@ -5,7 +5,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ChipSelector } from '@/components/ChipSelector';
 import { useTranslation } from '@/contexts/LanguageContext';
-import { CUISINE_OPTIONS, DIETARY_OPTIONS } from '@/lib/i18n';
+import {
+  BUDGET_OPTIONS,
+  COOKING_TIME_LABELS,
+  COOKING_TIME_OPTIONS,
+  CUISINE_OPTIONS,
+  DIETARY_OPTIONS,
+  HEALTH_GOAL_OPTIONS,
+} from '@/lib/i18n';
 import { saveOnboardingData } from '@/lib/onboardingStorage';
 import type { RootStackParamList } from '@/types/navigation';
 
@@ -16,11 +23,20 @@ export function OnboardingScreen({ navigation }: Props) {
   const [householdSize, setHouseholdSize] = useState(2);
   const [dietarySelected, setDietarySelected] = useState<string[]>(['None']);
   const [cuisineSelected, setCuisineSelected] = useState<string[]>(['Any']);
+  const [cookingTimeSelected, setCookingTimeSelected] = useState<string[]>(['Any']);
+  const [budgetSelected, setBudgetSelected] = useState<string[]>(['Any']);
+  const [healthGoalSelected, setHealthGoalSelected] = useState<string[]>(['Any']);
 
   async function handleContinue() {
     const dietaryRestrictions = dietarySelected.filter(s => s !== 'None').join(', ');
     const cuisineStyle = cuisineSelected[0] === 'Any' ? '' : cuisineSelected[0];
-    await saveOnboardingData({ householdSize, preferences: { dietaryRestrictions, cuisineStyle } });
+    const cookingTime = cookingTimeSelected[0] === 'Any' ? '' : cookingTimeSelected[0];
+    const budget = budgetSelected[0] === 'Any' ? '' : budgetSelected[0];
+    const healthGoal = healthGoalSelected[0] === 'Any' ? '' : healthGoalSelected[0];
+    await saveOnboardingData({
+      householdSize,
+      preferences: { dietaryRestrictions, cuisineStyle, cookingTime, budget, healthGoal },
+    });
     navigation.replace('MainTabs');
   }
 
@@ -59,6 +75,34 @@ export function OnboardingScreen({ navigation }: Props) {
             options={CUISINE_OPTIONS}
             selected={cuisineSelected}
             onChange={setCuisineSelected}
+          />
+        </View>
+
+        <View style={styles.field}>
+          <Text style={styles.label}>{t('cookingTime')}</Text>
+          <ChipSelector
+            options={COOKING_TIME_OPTIONS}
+            labels={COOKING_TIME_LABELS}
+            selected={cookingTimeSelected}
+            onChange={setCookingTimeSelected}
+          />
+        </View>
+
+        <View style={styles.field}>
+          <Text style={styles.label}>{t('budget')}</Text>
+          <ChipSelector
+            options={BUDGET_OPTIONS}
+            selected={budgetSelected}
+            onChange={setBudgetSelected}
+          />
+        </View>
+
+        <View style={styles.field}>
+          <Text style={styles.label}>{t('healthGoal')}</Text>
+          <ChipSelector
+            options={HEALTH_GOAL_OPTIONS}
+            selected={healthGoalSelected}
+            onChange={setHealthGoalSelected}
           />
         </View>
 

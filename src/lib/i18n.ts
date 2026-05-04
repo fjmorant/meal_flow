@@ -83,6 +83,9 @@ const en = {
   householdSize: 'Household size',
   dietaryRestrictions: 'Dietary restrictions',
   cuisineStyle: 'Cuisine style',
+  cookingTime: 'Cooking time per meal',
+  budget: 'Weekly budget',
+  healthGoal: 'Health goal',
   savePreferences: 'Save preferences',
   savedTitle: 'Saved',
   savedMessage: 'Your preferences have been updated.',
@@ -176,6 +179,9 @@ const es: typeof en = {
   householdSize: 'Personas en el hogar',
   dietaryRestrictions: 'Restricciones dietéticas',
   cuisineStyle: 'Estilo de cocina',
+  cookingTime: 'Tiempo de cocina por comida',
+  budget: 'Presupuesto semanal',
+  healthGoal: 'Objetivo de salud',
   savePreferences: 'Guardar preferencias',
   savedTitle: 'Guardado',
   savedMessage: 'Tus preferencias han sido actualizadas.',
@@ -191,6 +197,10 @@ export type TranslationKey = keyof typeof en;
 
 export const DIETARY_OPTIONS = ['None', 'Vegetarian', 'Vegan', 'Gluten-free', 'Dairy-free', 'Nut-free', 'Diabetic', 'Halal', 'Kosher'];
 export const CUISINE_OPTIONS = ['Any', 'Mediterranean', 'Asian', 'Italian', 'Mexican', 'Indian', 'American', 'Middle Eastern', 'Japanese', 'French'];
+export const COOKING_TIME_OPTIONS = ['Any', 'Quick', 'Moderate', 'Elaborate'];
+export const COOKING_TIME_LABELS = ['Any', 'Quick (< 30 min)', 'Moderate (30–60 min)', 'Elaborate (60+ min)'];
+export const BUDGET_OPTIONS = ['Any', 'Budget-friendly', 'Moderate', 'Premium'];
+export const HEALTH_GOAL_OPTIONS = ['Any', 'Balanced', 'Weight loss', 'Muscle gain', 'Low carb', 'High protein'];
 
 export const DIETARY_LABELS: Record<Language, string[]> = {
   en: DIETARY_OPTIONS,

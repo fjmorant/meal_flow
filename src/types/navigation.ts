@@ -3,6 +3,9 @@ import type { MealPlan } from '@/types/mealPlan';
 export type Preferences = {
   dietaryRestrictions: string;
   cuisineStyle: string;
+  cookingTime: string;
+  budget: string;
+  healthGoal: string;
 };
 
 // Root stack — holds the tab navigator, onboarding, and Input modal

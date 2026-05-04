@@ -52,17 +52,21 @@ exports.generateMealPlan = (0, https_1.onCall)({ secrets: [anthropicApiKey], reg
     let message;
     try {
         const client = new sdk_1.default({ apiKey: anthropicApiKey.value() });
+        const prefLines = [
+            `Household size: ${householdSize} ${householdSize === 1 ? 'person' : 'people'}`,
+            `Dietary restrictions: ${preferences.dietaryRestrictions || 'none'}`,
+            `Cuisine style: ${preferences.cuisineStyle || 'any'}`,
+            `Cooking time per meal: ${preferences.cookingTime || 'any'}`,
+            `Weekly budget: ${preferences.budget || 'any'}`,
+            `Health goal: ${preferences.healthGoal || 'balanced'}`,
+        ].join('\n');
         const userPrompt = isScratch
-            ? `Household size: ${householdSize} ${householdSize === 1 ? 'person' : 'people'}
-Dietary restrictions: ${preferences.dietaryRestrictions || 'none'}
-Cuisine style preference: ${preferences.cuisineStyle || 'any'}
+            ? `${prefLines}
 
-No specific ingredients — suggest a practical, balanced weekly meal plan. Include a comprehensive shopping list with everything needed to cook these meals.`
+No specific ingredients — suggest a practical weekly meal plan that fits the above preferences. Include a comprehensive shopping list with everything needed to cook these meals.`
             : `Available ingredients: ${ingredients}
 
-Household size: ${householdSize} ${householdSize === 1 ? 'person' : 'people'}
-Dietary restrictions: ${preferences.dietaryRestrictions || 'none'}
-Cuisine style preference: ${preferences.cuisineStyle || 'any'}
+${prefLines}
 
 Generate the weekly meal plan.`;
         message = await client.messages.create({
