@@ -10,6 +10,7 @@ export interface SavedMealPlan {
   plan: MealPlan;
   ingredientsInput: string;
   createdAt: Date;
+  planName?: string;
 }
 
 export function useMealPlans() {
@@ -34,6 +35,7 @@ export function useMealPlans() {
           plan: data.planJson as MealPlan,
           ingredientsInput: data.ingredientsInput as string,
           createdAt: data.createdAt.toDate(),
+          planName: data.planName as string | undefined,
         };
       });
     },

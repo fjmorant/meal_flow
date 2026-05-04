@@ -14,7 +14,7 @@ import type { TranslationKey } from '@/lib/i18n';
 type Props = NativeStackScreenProps<PlansStackParamList, 'MealPlan'>;
 
 export function MealPlanScreen({ route, navigation }: Props) {
-  const { ingredients, householdSize, preferences, savedPlan, mode } = route.params;
+  const { ingredients, householdSize, preferences, savedPlan, mode, planName } = route.params;
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const queryKey = ['meal_plan', mode, ingredients, householdSize, preferences];
@@ -41,7 +41,7 @@ export function MealPlanScreen({ route, navigation }: Props) {
   useEffect(() => {
     if (!savedPlan && generated.data && !hasSaved.current) {
       hasSaved.current = true;
-      savePlan({ plan: generated.data, ingredientsInput: ingredients });
+      savePlan({ plan: generated.data, ingredientsInput: ingredients, planName });
     }
   }, [generated.data]);
 

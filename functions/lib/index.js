@@ -114,13 +114,15 @@ exports.extractIngredients = (0, https_1.onCall)({ secrets: [anthropicApiKey], r
     if (!request.auth) {
         throw new https_1.HttpsError('unauthenticated', 'Authentication required.');
     }
-    const { fileBase64, mediaType } = request.data;
-    if (!fileBase64) {
-        throw new https_1.HttpsError('invalid-argument', 'File data is required.');
+    const { files } = request.data;
+    if (!(files === null || files === void 0 ? void 0 : files.length)) {
+        throw new https_1.HttpsError('invalid-argument', 'At least one file is required.');
     }
-    firebase_functions_1.logger.info('Extracting ingredients', { mediaType });
+    firebase_functions_1.logger.info('Extracting ingredients', { fileCount: files.length });
     const client = new sdk_1.default({ apiKey: anthropicApiKey.value() });
-    const isPdf = mediaType === 'application/pdf';
+    const fileBlocks = files.map(f => f.mediaType === 'application/pdf'
+        ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: f.fileBase64 } }
+        : { type: 'image', source: { type: 'base64', media_type: f.mediaType, data: f.fileBase64 } });
     const message = await client.messages.create({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 512,
@@ -128,12 +130,10 @@ exports.extractIngredients = (0, https_1.onCall)({ secrets: [anthropicApiKey], r
             {
                 role: 'user',
                 content: [
-                    isPdf
-                        ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: fileBase64 } }
-                        : { type: 'image', source: { type: 'base64', media_type: mediaType, data: fileBase64 } },
+                    ...fileBlocks,
                     {
                         type: 'text',
-                        text: 'List all food ingredients and grocery items you can identify. Return only a plain comma-separated list of ingredients, nothing else. No quantities, no explanations.',
+                        text: 'List all food ingredients and grocery items you can identify across all images. Return only a plain comma-separated list of ingredients, no duplicates, nothing else. No quantities, no explanations.',
                     },
                 ],
             },

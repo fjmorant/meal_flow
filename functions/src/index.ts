@@ -165,9 +165,13 @@ Generate the weekly meal plan.`;
   }
 );
 
-interface ExtractIngredientsRequest {
+interface ExtractFile {
   fileBase64: string;
   mediaType: string;
+}
+
+interface ExtractIngredientsRequest {
+  files: ExtractFile[];
 }
 
 export const extractIngredients = onCall(
@@ -177,17 +181,23 @@ export const extractIngredients = onCall(
       throw new HttpsError('unauthenticated', 'Authentication required.');
     }
 
-    const { fileBase64, mediaType } = request.data as ExtractIngredientsRequest;
+    const { files } = request.data as ExtractIngredientsRequest;
 
-    if (!fileBase64) {
-      throw new HttpsError('invalid-argument', 'File data is required.');
+    if (!files?.length) {
+      throw new HttpsError('invalid-argument', 'At least one file is required.');
     }
 
-    logger.info('Extracting ingredients', { mediaType });
+    logger.info('Extracting ingredients', { fileCount: files.length });
 
     const client = new Anthropic({ apiKey: anthropicApiKey.value() });
 
-    const isPdf = mediaType === 'application/pdf';
+    type ImageMediaType = 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif';
+
+    const fileBlocks = files.map(f =>
+      f.mediaType === 'application/pdf'
+        ? { type: 'document' as const, source: { type: 'base64' as const, media_type: 'application/pdf' as const, data: f.fileBase64 } }
+        : { type: 'image' as const, source: { type: 'base64' as const, media_type: f.mediaType as ImageMediaType, data: f.fileBase64 } }
+    );
 
     const message = await client.messages.create({
       model: 'claude-haiku-4-5-20251001',
@@ -196,12 +206,10 @@ export const extractIngredients = onCall(
         {
           role: 'user',
           content: [
-            isPdf
-              ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: fileBase64 } }
-              : { type: 'image', source: { type: 'base64', media_type: mediaType as 'image/jpeg' | 'image/png' | 'image/webp', data: fileBase64 } },
+            ...fileBlocks,
             {
               type: 'text',
-              text: 'List all food ingredients and grocery items you can identify. Return only a plain comma-separated list of ingredients, nothing else. No quantities, no explanations.',
+              text: 'List all food ingredients and grocery items you can identify across all images. Return only a plain comma-separated list of ingredients, no duplicates, nothing else. No quantities, no explanations.',
             },
           ],
         },

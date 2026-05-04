@@ -49,10 +49,16 @@ function PlanCard({ plan, onOpen, onDelete, scratchLabel }: PlanCardProps) {
       overshootRight={false}>
       <Pressable style={styles.planCard} onPress={() => onOpen(plan)}>
         <View style={styles.planCardHeader}>
-          <Text style={styles.planDate}>{formatDate(plan.createdAt)}</Text>
+          {plan.planName
+            ? <Text style={styles.planName}>{plan.planName}</Text>
+            : <Text style={styles.planDate}>{formatDate(plan.createdAt)}</Text>
+          }
           <Text style={styles.planArrow}>›</Text>
         </View>
-        <Text style={styles.planIngredients} numberOfLines={2}>
+        {plan.planName && (
+          <Text style={styles.planDate}>{formatDate(plan.createdAt)}</Text>
+        )}
+        <Text style={styles.planIngredients} numberOfLines={1}>
           {plan.ingredientsInput || scratchLabel}
         </Text>
         <Text style={styles.planPreviewText} numberOfLines={1}>
@@ -72,7 +78,7 @@ export function HomeScreen({ navigation }: Props) {
     const saved = await loadOnboardingData();
     (navigation.getParent() as any)?.navigate('Input', {
       householdSize: saved?.householdSize ?? 2,
-      preferences: saved?.preferences ?? { dietaryRestrictions: '', cuisineStyle: '' },
+      preferences: saved?.preferences ?? { dietaryRestrictions: '', cuisineStyle: '', cookingTime: '', budget: '', healthGoal: '' },
       mode,
     });
   }
@@ -81,7 +87,7 @@ export function HomeScreen({ navigation }: Props) {
     navigation.navigate('MealPlan', {
       ingredients: plan.ingredientsInput,
       householdSize: 2,
-      preferences: { dietaryRestrictions: '', cuisineStyle: '' },
+      preferences: { dietaryRestrictions: '', cuisineStyle: '', cookingTime: '', budget: '', healthGoal: '' },
       savedPlan: plan.plan,
     });
   }
@@ -185,10 +191,16 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  planDate: {
-    fontSize: 15,
+  planName: {
+    fontSize: 16,
     fontWeight: '700',
-    color: '#208AEF',
+    color: '#111',
+    flexShrink: 1,
+  },
+  planDate: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#999',
   },
   planArrow: {
     fontSize: 20,

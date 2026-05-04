@@ -1,11 +1,13 @@
 import { CommonActions } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as DocumentPicker from 'expo-document-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import { useLayoutEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   InputAccessoryView,
   Keyboard,
   Platform,
@@ -34,15 +36,23 @@ import type { RootStackParamList } from '@/types/navigation';
 type Props = NativeStackScreenProps<RootStackParamList, 'Input'>;
 
 const INPUT_ACCESSORY_ID = 'ingredients-input';
+const TOTAL_STEPS = 2;
 
 export function InputScreen({ route, navigation }: Props) {
   const { householdSize: savedHouseholdSize, preferences: savedPreferences, mode } = route.params;
   const { t } = useTranslation();
   const isScratch = mode === 'scratch';
 
+  const [step, setStep] = useState(0);
+  const isLastStep = step === TOTAL_STEPS - 1;
+
+  const [planName, setPlanName] = useState('');
+
   // Ingredient state
   const [ingredients, setIngredients] = useState('');
   const [isReadingFile, setIsReadingFile] = useState(false);
+  const [isCompressing, setIsCompressing] = useState(false);
+  const [photos, setPhotos] = useState<{ uri: string; base64: string; mimeType: string }[]>([]);
 
   // Per-plan preference state — initialized from saved prefs, overridable for this plan
   const [householdSize, setHouseholdSize] = useState(savedHouseholdSize);
@@ -55,17 +65,24 @@ export function InputScreen({ route, navigation }: Props) {
   const [healthGoalSelected, setHealthGoalSelected] = useState<string[]>([savedPreferences.healthGoal || 'Any']);
 
   const { mutate: extractIngredients, isPending: isExtracting } = useExtractIngredients();
-  const isBusy = isExtracting || isReadingFile;
+  const isBusy = isExtracting || isReadingFile || isCompressing;
 
   useLayoutEffect(() => {
     navigation.setOptions({
+      headerLeft: step > 0
+        ? () => (
+            <Pressable onPress={() => setStep(s => s - 1)} hitSlop={12}>
+              <Text style={styles.backButton}>← Back</Text>
+            </Pressable>
+          )
+        : undefined,
       headerRight: () => (
         <Pressable onPress={() => navigation.goBack()} hitSlop={12}>
           <Text style={styles.closeButton}>✕</Text>
         </Pressable>
       ),
     });
-  }, [navigation]);
+  }, [navigation, step]);
 
   function buildPreferences() {
     return {
@@ -78,9 +95,6 @@ export function InputScreen({ route, navigation }: Props) {
   }
 
   function dispatchToMealPlan(ingredientsValue: string) {
-    // Reset root stack to [MainTabs] with Plans stack seeded as [Home, MealPlan].
-    // This atomically dismisses the modal and ensures Home sits below MealPlan so
-    // goBack() on MealPlan lands on Home with no back button on Home itself.
     navigation.dispatch(
       CommonActions.reset({
         index: 0,
@@ -103,6 +117,7 @@ export function InputScreen({ route, navigation }: Props) {
                           householdSize,
                           preferences: buildPreferences(),
                           mode,
+                          planName: planName.trim() || undefined,
                         },
                       },
                     ],
@@ -117,26 +132,56 @@ export function InputScreen({ route, navigation }: Props) {
   }
 
   function handleGenerate() {
-    if (isScratch) {
-      dispatchToMealPlan('');
-    } else {
-      if (!ingredients.trim()) return;
-      dispatchToMealPlan(ingredients.trim());
+    dispatchToMealPlan(isScratch ? '' : ingredients.trim());
+  }
+
+  // ── Photo helpers ──────────────────────────────────────────────
+
+  async function compressPhoto(uri: string) {
+    const result = await ImageManipulator.manipulateAsync(
+      uri,
+      [{ resize: { width: 800 } }],
+      { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG, base64: true }
+    );
+    return { uri: result.uri, base64: result.base64!, mimeType: 'image/jpeg' };
+  }
+
+  async function handleCamera() {
+    const perm = await ImagePicker.requestCameraPermissionsAsync();
+    if (perm.status !== 'granted') {
+      Alert.alert('Permission needed', 'Camera access is required to take photos.');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.8 });
+    if (result.canceled || !result.assets[0]) return;
+    setIsCompressing(true);
+    try {
+      const compressed = await compressPhoto(result.assets[0].uri);
+      setPhotos(prev => [...prev, compressed]);
+    } finally {
+      setIsCompressing(false);
     }
   }
 
-  async function handlePickPhoto() {
+  async function handlePickPhotos() {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
-      quality: 0.7,
-      base64: true,
+      allowsMultipleSelection: true,
+      quality: 0.8,
     });
+    if (result.canceled || !result.assets.length) return;
+    setIsCompressing(true);
+    try {
+      const compressed = await Promise.all(result.assets.map(a => compressPhoto(a.uri)));
+      setPhotos(prev => [...prev, ...compressed]);
+    } finally {
+      setIsCompressing(false);
+    }
+  }
 
-    if (result.canceled || !result.assets[0]?.base64) return;
-
-    const asset = result.assets[0];
+  function handleExtractFromPhotos() {
     extractIngredients(
-      { fileBase64: asset.base64!, mediaType: asset.mimeType ?? 'image/jpeg' },
+      { files: photos.map(p => ({ fileBase64: p.base64, mediaType: p.mimeType })) },
       {
         onSuccess: extracted => setIngredients(prev => prev ? `${prev}, ${extracted}` : extracted),
         onError: () => Alert.alert(t('errorGeneric'), t('errorExtractPhoto')),
@@ -170,7 +215,7 @@ export function InputScreen({ route, navigation }: Props) {
           reader.onerror = () => reject(new Error('FileReader failed'));
           reader.readAsDataURL(blob);
         });
-      } catch (e) {
+      } catch {
         Alert.alert(t('errorGeneric'), t('errorReadFile'));
         return;
       } finally {
@@ -179,7 +224,7 @@ export function InputScreen({ route, navigation }: Props) {
 
       const mediaType = asset.mimeType ?? 'application/pdf';
       extractIngredients(
-        { fileBase64, mediaType },
+        { files: [{ fileBase64, mediaType }] },
         {
           onSuccess: extracted => setIngredients(prev => prev ? `${prev}, ${extracted}` : extracted),
           onError: () => Alert.alert(t('errorGeneric'), t('errorExtractFile')),
@@ -191,59 +236,102 @@ export function InputScreen({ route, navigation }: Props) {
     }
   }
 
-  const canGenerate = isScratch || !!ingredients.trim();
+  // ── Step content ──────────────────────────────────────────────
 
-  return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
-      <ScrollView
-        contentContainerStyle={styles.scroll}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}>
+  // Ingredients mode — step 0
+  function renderIngredientsStep() {
+    return (
+      <>
+        <View style={styles.header}>
+          <Text style={styles.title}>{t('whatIngredients')}</Text>
+          <Text style={styles.subtitle}>{t('whatIngredientsSubtitle')}</Text>
+        </View>
 
-        {isScratch ? (
+        <TextInput
+          style={styles.nameInput}
+          placeholder="Plan name (optional)"
+          placeholderTextColor="#bbb"
+          value={planName}
+          onChangeText={setPlanName}
+          returnKeyType="done"
+          maxLength={60}
+        />
+
+        <View style={styles.importRow}>
+          <Pressable style={styles.importButton} onPress={handleCamera} disabled={isBusy}>
+            <Text style={styles.importButtonText}>Camera</Text>
+          </Pressable>
+          <Pressable style={styles.importButton} onPress={handlePickPhotos} disabled={isBusy}>
+            <Text style={styles.importButtonText}>Gallery</Text>
+          </Pressable>
+          <Pressable style={styles.importButton} onPress={handlePickInvoice} disabled={isBusy}>
+            <Text style={styles.importButtonText}>{t('fromInvoice')}</Text>
+          </Pressable>
+        </View>
+
+        {photos.length > 0 && (
           <>
-            <Text style={styles.title}>{t('planYourWeek')}</Text>
-            <Text style={styles.subtitle}>{t('planYourWeekSubtitle')}</Text>
-          </>
-        ) : (
-          <>
-            <Text style={styles.title}>{t('whatIngredients')}</Text>
-            <Text style={styles.subtitle}>{t('whatIngredientsSubtitle')}</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.photosRow}>
+              {photos.map((photo, i) => (
+                <View key={i} style={styles.photoThumb}>
+                  <Image source={{ uri: photo.uri }} style={styles.thumbImage} />
+                  <Pressable
+                    style={styles.removePhoto}
+                    onPress={() => setPhotos(prev => prev.filter((_, j) => j !== i))}>
+                    <Text style={styles.removePhotoText}>✕</Text>
+                  </Pressable>
+                </View>
+              ))}
+            </ScrollView>
 
-            <View style={styles.importRow}>
-              <Pressable style={styles.importButton} onPress={handlePickPhoto} disabled={isBusy}>
-                <Text style={styles.importButtonText}>{t('fromPhoto')}</Text>
-              </Pressable>
-              <Pressable style={styles.importButton} onPress={handlePickInvoice} disabled={isBusy}>
-                <Text style={styles.importButtonText}>{t('fromInvoice')}</Text>
-              </Pressable>
-            </View>
-
-            {isBusy && (
-              <View style={styles.extractingRow}>
+            <Pressable
+              style={[styles.analyzeButton, isBusy && styles.analyzeButtonDisabled]}
+              onPress={handleExtractFromPhotos}
+              disabled={isBusy}>
+              {isExtracting || isCompressing ? (
                 <ActivityIndicator size="small" color="#208AEF" />
-                <Text style={styles.extractingText}>
-                  {isReadingFile ? t('readingFile') : t('extractingIngredients')}
+              ) : (
+                <Text style={styles.analyzeButtonText}>
+                  Analyze {photos.length} photo{photos.length > 1 ? 's' : ''} →
                 </Text>
-              </View>
-            )}
-
-            <TextInput
-              style={styles.input}
-              placeholder={t('ingredientsPlaceholder')}
-              placeholderTextColor="#999"
-              value={ingredients}
-              onChangeText={setIngredients}
-              multiline
-              textAlignVertical="top"
-              autoFocus={false}
-              inputAccessoryViewID={INPUT_ACCESSORY_ID}
-            />
+              )}
+            </Pressable>
           </>
         )}
 
-        <View style={styles.divider} />
-        <Text style={styles.sectionLabel}>Preferences for this plan</Text>
+        {isReadingFile && (
+          <View style={styles.extractingRow}>
+            <ActivityIndicator size="small" color="#208AEF" />
+            <Text style={styles.extractingText}>{t('readingFile')}</Text>
+          </View>
+        )}
+
+        <TextInput
+          style={styles.input}
+          placeholder={t('ingredientsPlaceholder')}
+          placeholderTextColor="#999"
+          value={ingredients}
+          onChangeText={setIngredients}
+          multiline
+          textAlignVertical="top"
+          autoFocus={false}
+          inputAccessoryViewID={INPUT_ACCESSORY_ID}
+        />
+      </>
+    );
+  }
+
+  // Ingredients mode — step 1
+  function renderPreferencesStep() {
+    return (
+      <>
+        <View style={styles.header}>
+          <Text style={styles.title}>Preferences</Text>
+          <Text style={styles.subtitle}>Customize the plan for your household.</Text>
+        </View>
 
         <View style={styles.field}>
           <Text style={styles.fieldLabel}>{t('householdSize')}</Text>
@@ -260,21 +348,12 @@ export function InputScreen({ route, navigation }: Props) {
 
         <View style={styles.field}>
           <Text style={styles.fieldLabel}>{t('dietaryRestrictions')}</Text>
-          <ChipSelector
-            options={DIETARY_OPTIONS}
-            selected={dietarySelected}
-            onChange={setDietarySelected}
-            multiSelect
-          />
+          <ChipSelector options={DIETARY_OPTIONS} selected={dietarySelected} onChange={setDietarySelected} multiSelect />
         </View>
 
         <View style={styles.field}>
           <Text style={styles.fieldLabel}>{t('cuisineStyle')}</Text>
-          <ChipSelector
-            options={CUISINE_OPTIONS}
-            selected={cuisineSelected}
-            onChange={setCuisineSelected}
-          />
+          <ChipSelector options={CUISINE_OPTIONS} selected={cuisineSelected} onChange={setCuisineSelected} />
         </View>
 
         <View style={styles.field}>
@@ -289,29 +368,132 @@ export function InputScreen({ route, navigation }: Props) {
 
         <View style={styles.field}>
           <Text style={styles.fieldLabel}>{t('budget')}</Text>
-          <ChipSelector
-            options={BUDGET_OPTIONS}
-            selected={budgetSelected}
-            onChange={setBudgetSelected}
-          />
+          <ChipSelector options={BUDGET_OPTIONS} selected={budgetSelected} onChange={setBudgetSelected} />
         </View>
 
         <View style={styles.field}>
           <Text style={styles.fieldLabel}>{t('healthGoal')}</Text>
+          <ChipSelector options={HEALTH_GOAL_OPTIONS} selected={healthGoalSelected} onChange={setHealthGoalSelected} />
+        </View>
+      </>
+    );
+  }
+
+  // Scratch mode — step 0
+  function renderWhoStep() {
+    return (
+      <>
+        <View style={styles.header}>
+          <Text style={styles.title}>Who's eating?</Text>
+          <Text style={styles.subtitle}>We'll scale portions and respect dietary needs.</Text>
+        </View>
+
+        <TextInput
+          style={styles.nameInput}
+          placeholder="Plan name (optional)"
+          placeholderTextColor="#bbb"
+          value={planName}
+          onChangeText={setPlanName}
+          returnKeyType="done"
+          maxLength={60}
+        />
+
+        <View style={styles.field}>
+          <Text style={styles.fieldLabel}>{t('householdSize')}</Text>
+          <View style={styles.stepper}>
+            <Pressable style={styles.stepButton} onPress={() => setHouseholdSize(n => Math.max(1, n - 1))}>
+              <Text style={styles.stepButtonText}>−</Text>
+            </Pressable>
+            <Text style={styles.stepValue}>{householdSize}</Text>
+            <Pressable style={styles.stepButton} onPress={() => setHouseholdSize(n => Math.min(10, n + 1))}>
+              <Text style={styles.stepButtonText}>+</Text>
+            </Pressable>
+          </View>
+        </View>
+
+        <View style={styles.field}>
+          <Text style={styles.fieldLabel}>{t('dietaryRestrictions')}</Text>
+          <ChipSelector options={DIETARY_OPTIONS} selected={dietarySelected} onChange={setDietarySelected} multiSelect />
+        </View>
+      </>
+    );
+  }
+
+  // Scratch mode — step 1
+  function renderStyleStep() {
+    return (
+      <>
+        <View style={styles.header}>
+          <Text style={styles.title}>What kind of meals?</Text>
+          <Text style={styles.subtitle}>Set your cooking style and goals for the week.</Text>
+        </View>
+
+        <View style={styles.field}>
+          <Text style={styles.fieldLabel}>{t('cuisineStyle')}</Text>
+          <ChipSelector options={CUISINE_OPTIONS} selected={cuisineSelected} onChange={setCuisineSelected} />
+        </View>
+
+        <View style={styles.field}>
+          <Text style={styles.fieldLabel}>{t('cookingTime')}</Text>
           <ChipSelector
-            options={HEALTH_GOAL_OPTIONS}
-            selected={healthGoalSelected}
-            onChange={setHealthGoalSelected}
+            options={COOKING_TIME_OPTIONS}
+            labels={COOKING_TIME_LABELS}
+            selected={cookingTimeSelected}
+            onChange={setCookingTimeSelected}
           />
         </View>
 
-        <Pressable
-          style={[styles.button, !canGenerate && styles.buttonDisabled]}
-          onPress={handleGenerate}
-          disabled={!canGenerate}>
-          <Text style={styles.buttonText}>{t('generateWeeklyPlan')}</Text>
-        </Pressable>
+        <View style={styles.field}>
+          <Text style={styles.fieldLabel}>{t('budget')}</Text>
+          <ChipSelector options={BUDGET_OPTIONS} selected={budgetSelected} onChange={setBudgetSelected} />
+        </View>
+
+        <View style={styles.field}>
+          <Text style={styles.fieldLabel}>{t('healthGoal')}</Text>
+          <ChipSelector options={HEALTH_GOAL_OPTIONS} selected={healthGoalSelected} onChange={setHealthGoalSelected} />
+        </View>
+      </>
+    );
+  }
+
+  function renderCurrentStep() {
+    if (isScratch) {
+      return step === 0 ? renderWhoStep() : renderStyleStep();
+    }
+    return step === 0 ? renderIngredientsStep() : renderPreferencesStep();
+  }
+
+  const canNext = isScratch ? true : !!ingredients.trim();
+
+  return (
+    <SafeAreaView style={styles.container} edges={['bottom']}>
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}>
+        {renderCurrentStep()}
       </ScrollView>
+
+      <View style={styles.footer}>
+        <View style={styles.dots}>
+          {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
+            <View key={i} style={[styles.dot, i === step && styles.dotActive]} />
+          ))}
+        </View>
+
+        {isLastStep ? (
+          <Pressable style={styles.button} onPress={handleGenerate}>
+            <Text style={styles.buttonText}>{t('generateWeeklyPlan')}</Text>
+          </Pressable>
+        ) : (
+          <Pressable
+            style={[styles.button, (!canNext || isBusy) && styles.buttonDisabled]}
+            onPress={() => setStep(s => s + 1)}
+            disabled={!canNext || isBusy}>
+            <Text style={styles.buttonText}>Next</Text>
+          </Pressable>
+        )}
+      </View>
 
       {Platform.OS === 'ios' && (
         <InputAccessoryView nativeID={INPUT_ACCESSORY_ID}>
@@ -327,6 +509,11 @@ export function InputScreen({ route, navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
+  backButton: {
+    fontSize: 16,
+    color: '#208AEF',
+    fontWeight: '500',
+  },
   closeButton: {
     fontSize: 18,
     color: '#666',
@@ -338,7 +525,10 @@ const styles = StyleSheet.create({
   },
   scroll: {
     padding: 24,
-    gap: 16,
+    gap: 20,
+  },
+  header: {
+    gap: 6,
   },
   title: {
     fontSize: 26,
@@ -348,19 +538,76 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#666',
   },
+  nameInput: {
+    borderWidth: 1.5,
+    borderColor: '#e8e8e8',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#111',
+  },
   importRow: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 8,
   },
   importButton: {
     flex: 1,
     borderWidth: 1.5,
     borderColor: '#208AEF',
     borderRadius: 10,
-    padding: 12,
+    padding: 10,
     alignItems: 'center',
   },
   importButtonText: {
+    color: '#208AEF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  photosRow: {
+    gap: 8,
+    paddingVertical: 2,
+  },
+  photoThumb: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  thumbImage: {
+    width: 80,
+    height: 80,
+  },
+  removePhoto: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  removePhotoText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  analyzeButton: {
+    borderWidth: 1.5,
+    borderColor: '#208AEF',
+    borderRadius: 10,
+    padding: 12,
+    alignItems: 'center',
+    minHeight: 44,
+    justifyContent: 'center',
+  },
+  analyzeButtonDisabled: {
+    borderColor: '#a0c8f5',
+  },
+  analyzeButtonText: {
     color: '#208AEF',
     fontSize: 15,
     fontWeight: '600',
@@ -382,18 +629,6 @@ const styles = StyleSheet.create({
     padding: 16,
     fontSize: 16,
     lineHeight: 24,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: '#eee',
-    marginVertical: 4,
-  },
-  sectionLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#999',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
   },
   field: {
     gap: 8,
@@ -425,12 +660,35 @@ const styles = StyleSheet.create({
     minWidth: 24,
     textAlign: 'center',
   },
+  footer: {
+    padding: 24,
+    paddingTop: 16,
+    gap: 14,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+    backgroundColor: '#fff',
+  },
+  dots: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 6,
+    alignItems: 'center',
+  },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#ddd',
+  },
+  dotActive: {
+    width: 20,
+    backgroundColor: '#208AEF',
+  },
   button: {
     backgroundColor: '#208AEF',
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
-    marginTop: 8,
   },
   buttonDisabled: {
     backgroundColor: '#a0c8f5',

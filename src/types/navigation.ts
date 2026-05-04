@@ -30,6 +30,7 @@ export type PlansStackParamList = {
     preferences: Preferences;
     savedPlan?: MealPlan;
     mode?: 'ingredients' | 'scratch';
+    planName?: string;
   };
   MealDetail: {
     mealName: string;

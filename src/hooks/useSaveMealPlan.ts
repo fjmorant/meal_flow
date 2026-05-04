@@ -8,13 +8,14 @@ import type { MealPlan } from '@/types/mealPlan';
 interface SaveParams {
   plan: MealPlan;
   ingredientsInput: string;
+  planName?: string;
 }
 
 export function useSaveMealPlan() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ plan, ingredientsInput }: SaveParams) => {
+    mutationFn: async ({ plan, ingredientsInput, planName }: SaveParams) => {
       const userId = auth.currentUser?.uid;
       if (!userId) throw new Error('Not authenticated');
 
@@ -23,6 +24,7 @@ export function useSaveMealPlan() {
         createdAt: new Date(),
         planJson: plan,
         ingredientsInput,
+        ...(planName ? { planName } : {}),
       });
     },
     onSuccess: () => {

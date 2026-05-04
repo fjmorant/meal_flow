@@ -3,16 +3,20 @@ import { useMutation } from '@tanstack/react-query';
 
 import { functionsEU } from '@/lib/firebase';
 
-interface ExtractParams {
+export interface ExtractFile {
   fileBase64: string;
   mediaType: string;
 }
 
+interface ExtractParams {
+  files: ExtractFile[];
+}
+
 export function useExtractIngredients() {
   return useMutation({
-    mutationFn: async ({ fileBase64, mediaType }: ExtractParams): Promise<string> => {
+    mutationFn: async ({ files }: ExtractParams): Promise<string> => {
       const fn = httpsCallable<ExtractParams, { ingredients: string }>(functionsEU, 'extractIngredients');
-      const result = await fn({ fileBase64, mediaType });
+      const result = await fn({ files });
       return result.data.ingredients;
     },
   });
