@@ -74,7 +74,7 @@ export function MealPlanScreen({ route, navigation }: Props) {
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <Text style={styles.title}>{t('yourWeeklyPlan')}</Text>
+        <Text style={styles.title}>{planName || t('yourWeeklyPlan')}</Text>
 
         <Text style={styles.sectionTitle}>{t('meals')}</Text>
         {DAYS.map(day => (

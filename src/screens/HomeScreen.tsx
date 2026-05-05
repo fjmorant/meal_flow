@@ -89,6 +89,7 @@ export function HomeScreen({ navigation }: Props) {
       householdSize: 2,
       preferences: { dietaryRestrictions: '', cuisineStyle: '', cookingTime: '', budget: '', healthGoal: '' },
       savedPlan: plan.plan,
+      planName: plan.planName,
     });
   }
 
