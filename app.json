@@ -56,7 +56,9 @@
             "imageWidth": 76
           }
         }
-      ]
+      ],
+      "expo-secure-store",
+      "@bugsnag/plugin-expo-eas-sourcemaps"
     ],
     "experiments": {
       "reactCompiler": true
@@ -64,6 +66,9 @@
     "extra": {
       "eas": {
         "projectId": "9a9708fd-b419-47c4-a23e-75d5d1a88760"
+      },
+      "bugsnag": {
+        "apiKey": "ef23e88d9bcc1340edf4680977f5baa7"
       }
     },
     "owner": "morant"
