@@ -1,9 +1,5 @@
 import Bugsnag from "@bugsnag/expo";
 import BugsnagPerformance from "@bugsnag/expo-performance";
-
-Bugsnag.start();
-BugsnagPerformance.start();
-
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
@@ -11,6 +7,11 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Text } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+
+Bugsnag.start();
+BugsnagPerformance.start();
+
+const ErrorBoundary = Bugsnag.getPlugin("react")!.createErrorBoundary();
 
 import { LanguageProvider, useTranslation } from "@/contexts/LanguageContext";
 import { ShoppingListProvider } from "@/contexts/ShoppingListContext";
@@ -158,16 +159,18 @@ function AppNavigator() {
 
 export default function App() {
   return (
-    <LanguageProvider>
-      <ShoppingListProvider>
-        <GestureHandlerRootView style={{ flex: 1 }}>
-          <QueryClientProvider client={queryClient}>
-            <NavigationContainer>
-              <AppNavigator />
-            </NavigationContainer>
-          </QueryClientProvider>
-        </GestureHandlerRootView>
-      </ShoppingListProvider>
-    </LanguageProvider>
+    <ErrorBoundary>
+      <LanguageProvider>
+        <ShoppingListProvider>
+          <GestureHandlerRootView style={{ flex: 1 }}>
+            <QueryClientProvider client={queryClient}>
+              <NavigationContainer>
+                <AppNavigator />
+              </NavigationContainer>
+            </QueryClientProvider>
+          </GestureHandlerRootView>
+        </ShoppingListProvider>
+      </LanguageProvider>
+    </ErrorBoundary>
   );
 }
