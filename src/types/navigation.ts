@@ -18,6 +18,7 @@ export type RootStackParamList = {
 // Bottom tab navigator
 export type TabParamList = {
   Plans: undefined;
+  Shopping: undefined;
   Settings: undefined;
 };
 

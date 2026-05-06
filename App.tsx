@@ -13,6 +13,7 @@ import { Text } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import { LanguageProvider, useTranslation } from "@/contexts/LanguageContext";
+import { ShoppingListProvider } from "@/contexts/ShoppingListContext";
 import { getOrCreateAnonymousSession } from "@/lib/firebase";
 import { loadOnboardingData } from "@/lib/onboardingStorage";
 import { queryClient } from "@/lib/queryClient";
@@ -22,6 +23,7 @@ import { MealDetailScreen } from "@/screens/MealDetailScreen";
 import { MealPlanScreen } from "@/screens/MealPlanScreen";
 import { OnboardingScreen } from "@/screens/OnboardingScreen";
 import { SettingsScreen } from "@/screens/SettingsScreen";
+import { ShoppingListScreen } from "@/screens/ShoppingListScreen";
 import type {
   PlansStackParamList,
   RootStackParamList,
@@ -80,6 +82,19 @@ function TabNavigator() {
           tabBarLabel: t("plans"),
           tabBarIcon: ({ color }) => (
             <Text style={{ fontSize: 20, color }}>🗓</Text>
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Shopping"
+        component={ShoppingListScreen}
+        options={{
+          ...headerStyle,
+          headerShown: true,
+          title: "Shopping List",
+          tabBarLabel: "Shopping",
+          tabBarIcon: ({ color }) => (
+            <Text style={{ fontSize: 20, color }}>🛒</Text>
           ),
         }}
       />
@@ -144,13 +159,15 @@ function AppNavigator() {
 export default function App() {
   return (
     <LanguageProvider>
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        <QueryClientProvider client={queryClient}>
-          <NavigationContainer>
-            <AppNavigator />
-          </NavigationContainer>
-        </QueryClientProvider>
-      </GestureHandlerRootView>
+      <ShoppingListProvider>
+        <GestureHandlerRootView style={{ flex: 1 }}>
+          <QueryClientProvider client={queryClient}>
+            <NavigationContainer>
+              <AppNavigator />
+            </NavigationContainer>
+          </QueryClientProvider>
+        </GestureHandlerRootView>
+      </ShoppingListProvider>
     </LanguageProvider>
   );
 }

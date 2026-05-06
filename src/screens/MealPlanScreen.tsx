@@ -1,12 +1,13 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useGenerateMealPlan } from '@/hooks/useGenerateMealPlan';
 import { useSaveMealPlan } from '@/hooks/useSaveMealPlan';
+import { useShoppingList } from '@/contexts/ShoppingListContext';
 import type { PlansStackParamList } from '@/types/navigation';
 import { DAYS } from '@/types/mealPlan';
 import type { TranslationKey } from '@/lib/i18n';
@@ -22,7 +23,11 @@ export function MealPlanScreen({ route, navigation }: Props) {
   const generated = useGenerateMealPlan({ ingredients, householdSize, preferences, mode });
 
   const { mutate: savePlan } = useSaveMealPlan();
+  const { items: shoppingItems, addItems } = useShoppingList();
   const hasSaved = useRef(false);
+
+  // Track which items have been added in this session for instant feedback
+  const [addedNames, setAddedNames] = useState<Set<string>>(new Set());
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -33,6 +38,35 @@ export function MealPlanScreen({ route, navigation }: Props) {
       ),
     });
   }, [navigation, t]);
+
+  // Sync addedNames with persisted shopping list on load
+  useEffect(() => {
+    const persisted = new Set(shoppingItems.map(i => i.name.toLowerCase()));
+    setAddedNames(prev => {
+      const merged = new Set(prev);
+      data?.shopping_list &&
+        (['vegetables', 'proteins', 'other'] as const).forEach(cat =>
+          data.shopping_list[cat].forEach(name => {
+            if (persisted.has(name.toLowerCase())) merged.add(name.toLowerCase());
+          })
+        );
+      return merged;
+    });
+  }, [shoppingItems.length]);
+
+  function handleAddItem(name: string, category: 'vegetables' | 'proteins' | 'other') {
+    addItems([{ name, category }]);
+    setAddedNames(prev => new Set(prev).add(name.toLowerCase()));
+  }
+
+  function handleAddAll() {
+    if (!data) return;
+    const all = (['vegetables', 'proteins', 'other'] as const).flatMap(cat =>
+      data.shopping_list[cat].map(name => ({ name, category: cat }))
+    );
+    addItems(all);
+    setAddedNames(new Set(all.map(i => i.name.toLowerCase())));
+  }
 
   const data = savedPlan ?? generated.data;
   const isPending = !savedPlan && generated.isPending;
@@ -103,13 +137,33 @@ export function MealPlanScreen({ route, navigation }: Props) {
           </View>
         ))}
 
-        <Text style={styles.sectionTitle}>{t('shoppingList')}</Text>
+        <View style={styles.shoppingHeader}>
+          <Text style={styles.sectionTitle}>{t('shoppingList')}</Text>
+          {data && (
+            <Pressable onPress={handleAddAll}>
+              <Text style={styles.addAllButton}>+ Add all</Text>
+            </Pressable>
+          )}
+        </View>
         {(['vegetables', 'proteins', 'other'] as const).map(category => (
           <View key={category} style={styles.categoryCard}>
             <Text style={styles.categoryName}>{t(category as TranslationKey)}</Text>
-            {data?.shopping_list[category].map((item, i) => (
-              <Text key={i} style={styles.listItem}>• {item}</Text>
-            ))}
+            {data?.shopping_list[category].map((item, i) => {
+              const isAdded = addedNames.has(item.toLowerCase());
+              return (
+                <View key={i} style={styles.listRow}>
+                  <Text style={styles.listItem}>• {item}</Text>
+                  <Pressable
+                    style={[styles.addButton, isAdded && styles.addButtonAdded]}
+                    onPress={() => !isAdded && handleAddItem(item, category)}
+                    hitSlop={8}>
+                    <Text style={[styles.addButtonText, isAdded && styles.addButtonTextAdded]}>
+                      {isAdded ? '✓' : '+'}
+                    </Text>
+                  </Pressable>
+                </View>
+              );
+            })}
           </View>
         ))}
 
@@ -182,6 +236,18 @@ const styles = StyleSheet.create({
     color: '#208AEF',
     fontWeight: '600',
   },
+  shoppingHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  addAllButton: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#208AEF',
+  },
   categoryCard: {
     backgroundColor: '#f5f5f5',
     borderRadius: 12,
@@ -193,9 +259,36 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginBottom: 4,
   },
+  listRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   listItem: {
     fontSize: 14,
     color: '#333',
+    flex: 1,
+  },
+  addButton: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: '#208AEF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addButtonAdded: {
+    backgroundColor: '#d1fae5',
+  },
+  addButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+    lineHeight: 18,
+  },
+  addButtonTextAdded: {
+    color: '#059669',
+    fontSize: 13,
   },
   loadingText: {
     fontSize: 16,
