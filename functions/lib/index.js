@@ -18,6 +18,14 @@ Rules:
 - Scale portions for the household size
 - Return ONLY valid JSON, no markdown, no explanation
 
+Shopping list rules:
+- Express quantities in natural supermarket units: how a shopper would actually buy the item
+- Use count for produce and meat (e.g. "6 tomatoes", "2 chicken breasts", "1 head of garlic")
+- Use package size for staples (e.g. "1 bag pasta (500g)", "1 can chickpeas", "1 jar tomato sauce")
+- Use volume/weight only when there is no natural unit (e.g. "200ml cream", "100g parmesan")
+- Never use cooking measurements (tablespoons, cups, teaspoons) in the shopping list
+- Consolidate the same ingredient across all meals into a single line with the total quantity needed
+
 Required JSON format:
 {
   "week": {
@@ -30,13 +38,13 @@ Required JSON format:
     "sunday": { "lunch": "meal name", "dinner": "meal name" }
   },
   "shopping_list": {
-    "vegetables": ["item1", "item2"],
-    "proteins": ["item1", "item2"],
-    "other": ["item1", "item2"]
+    "vegetables": ["6 tomatoes", "2 onions"],
+    "proteins": ["2 chicken breasts", "1 can tuna"],
+    "other": ["1 bag pasta (500g)", "1 bottle olive oil"]
   }
 }`;
 exports.generateMealPlan = (0, https_1.onCall)({ secrets: [anthropicApiKey], region: 'europe-west1' }, async (request) => {
-    var _a;
+    var _a, _b, _c, _d;
     firebase_functions_1.logger.info('generateMealPlan called', { uid: (_a = request.auth) === null || _a === void 0 ? void 0 : _a.uid });
     if (!request.auth) {
         firebase_functions_1.logger.warn('Unauthenticated request rejected');
@@ -102,6 +110,10 @@ Generate the weekly meal plan.`;
         .trim();
     try {
         const plan = JSON.parse(cleaned);
+        // Guarantee all three shopping list categories are always arrays
+        plan.shopping_list.vegetables = (_b = plan.shopping_list.vegetables) !== null && _b !== void 0 ? _b : [];
+        plan.shopping_list.proteins = (_c = plan.shopping_list.proteins) !== null && _c !== void 0 ? _c : [];
+        plan.shopping_list.other = (_d = plan.shopping_list.other) !== null && _d !== void 0 ? _d : [];
         firebase_functions_1.logger.info('Meal plan parsed successfully');
         return plan;
     }
@@ -152,6 +164,7 @@ Rules:
 - Simple home cooking only — no restaurant techniques
 - Scale ingredients for the given number of servings
 - Steps should be short, actionable sentences
+- Always use metric units (grams, ml, liters, °C) — never imperial
 - Return ONLY valid JSON, no markdown, no explanation
 
 Required JSON format:

@@ -62,7 +62,7 @@ export function MealPlanScreen({ route, navigation }: Props) {
   function handleAddAll() {
     if (!data) return;
     const all = (['vegetables', 'proteins', 'other'] as const).flatMap(cat =>
-      data.shopping_list[cat].map(name => ({ name, category: cat }))
+      (data.shopping_list[cat] ?? []).map(name => ({ name, category: cat }))
     );
     addItems(all);
     setAddedNames(new Set(all.map(i => i.name.toLowerCase())));
@@ -148,7 +148,7 @@ export function MealPlanScreen({ route, navigation }: Props) {
         {(['vegetables', 'proteins', 'other'] as const).map(category => (
           <View key={category} style={styles.categoryCard}>
             <Text style={styles.categoryName}>{t(category as TranslationKey)}</Text>
-            {data?.shopping_list[category].map((item, i) => {
+            {(data?.shopping_list[category] ?? []).map((item, i) => {
               const isAdded = addedNames.has(item.toLowerCase());
               return (
                 <View key={i} style={styles.listRow}>

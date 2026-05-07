@@ -8,8 +8,11 @@ import { useEffect, useState } from "react";
 import { Text } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
-Bugsnag.start();
-BugsnagPerformance.start();
+Bugsnag.start({
+  releaseStage: __DEV__ ? 'development' : 'production',
+  enabledReleaseStages: ['production'],
+});
+BugsnagPerformance.start({ releaseStage: __DEV__ ? 'development' : 'production' });
 
 const ErrorBoundary = Bugsnag.getPlugin("react")!.createErrorBoundary();
 
